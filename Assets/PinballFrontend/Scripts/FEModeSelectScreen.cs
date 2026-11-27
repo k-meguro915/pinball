@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -23,7 +23,7 @@ namespace PinballFrontend
         EventSystem es;
 
         readonly List<FEOptionRow> rows = new List<FEOptionRow>();
-        FEOptionRow ruleRow, cpuRow, targetRow, outfieldRow, shootRow, flipP1Row, flipP2Row;
+        FEOptionRow ruleRow, cpuRow, targetRow, outfieldRow;
         TextMeshProUGUI description, hint;
         Button startButton, tutorialButton, backButton;
         RectTransform root;
@@ -72,12 +72,6 @@ namespace PinballFrontend
             // ドッジボール
             outfieldRow = Row(panel, "Outfield", "外野の投げ方", new[] { "全自動", "ボタン" },
                 () => (int)settings.outfieldControl, i => settings.outfieldControl = (FEControl)i);
-            shootRow = Row(panel, "Shoot", "シュートポストの撃ち方", new[] { "全自動", "ボタン" },
-                () => (int)settings.shootControl, i => settings.shootControl = (FEControl)i);
-            flipP1Row = Row(panel, "FlipperP1", "P1 のフリッパー", new[] { "手動", "自動" },
-                () => settings.flipperAutoP1 ? 1 : 0, i => settings.flipperAutoP1 = i == 1);
-            flipP2Row = Row(panel, "FlipperP2", "P2 のフリッパー", new[] { "手動", "自動" },
-                () => settings.flipperAutoP2 ? 1 : 0, i => settings.flipperAutoP2 = i == 1);
 
             // ---- ルールの説明 ----
             description = FEUI.CreateText(col, "Description", "", 30f, FEUI.SubTextColor, TextAlignmentOptions.Center, font, 50f);
@@ -142,9 +136,6 @@ namespace PinballFrontend
             cpuRow.gameObject.SetActive(vsCpu);
             targetRow.gameObject.SetActive(versus);
             outfieldRow.gameObject.SetActive(!versus);
-            shootRow.gameObject.SetActive(!versus);
-            flipP1Row.gameObject.SetActive(!versus);
-            flipP2Row.gameObject.SetActive(!versus && !vsCpu); // CPU のフリッパーは本編がいつも自動にする
 
             description.text = versus
                 ? "<color=#" + ColorUtility.ToHtmlStringRGB(FEUI.P1Color) + ">●</color>　ゴールに球を入れて点を取る。先に決めた点数を取った方の勝ち。"

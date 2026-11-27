@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 #if ENABLE_INPUT_SYSTEM
 using System.Collections.Generic;
 using UnityEngine.InputSystem;
@@ -13,7 +13,7 @@ namespace PinballDodgeball
     /// </summary>
     public struct DBInputState
     {
-        public bool flipL, flipR, b, y;
+        public bool b, y;
         public Vector2 move;
         public bool bDown, bUp, yDown;
     }
@@ -26,7 +26,6 @@ namespace PinballDodgeball
     /// <summary>
     /// 試合中の入力。対戦ルール（Pinball）と同じ操作にそろえてある（2026-11-24）。
     /// Project-wide Actions（Assets/InputSystem_Actions.inputactions）の "P1" / "P2" マップを、対戦ルールと同じアクション名で読む。
-    ///   flipL ← FlipperTop（パッド LB）、flipR ← FlipperBottom（RB）
     ///   b     ← BlockerCatch、無ければ Plunger（RB）
     ///   y     ← BlockerBounce、無ければ RouteToggle（LB）
     ///   move  ← MoveBlockers（左スティック）
@@ -42,8 +41,6 @@ namespace PinballDodgeball
 #if ENABLE_INPUT_SYSTEM
             if (Configure() && player >= 0 && player < 2 && maps[player] != null)
             {
-                s.flipL = IsPressed(flipTop[player]);
-                s.flipR = IsPressed(flipBottom[player]);
                 s.b = IsPressed(catchOrPlunger[player]);
                 s.y = IsPressed(bounceOrRoute[player]);
                 s.move = ReadVector(move[player]);
@@ -117,7 +114,7 @@ namespace PinballDodgeball
         }
 
         /// <summary>
-        /// 画面表示用のボタン名。id は "L"（左のフリッパー）/ "R"（右のフリッパー）/ "B"（発射・キャッチ）/ "Y"（ルート切り替え）/ "Move"。
+        /// 画面表示用のボタン名。id は "B"（発射・キャッチ・投げる）/ "Y"（ルート切り替え）/ "Move"。
         /// パッドがあればパッドの、無ければキーボードの割り当てを、Input Actions から読む
         /// </summary>
         public static string Label(int player, string id)
@@ -128,8 +125,6 @@ namespace PinballDodgeball
                 InputAction a = null;
                 switch (id)
                 {
-                    case "L": a = flipTop[player]; break;
-                    case "R": a = flipBottom[player]; break;
                     case "B": a = catchOrPlunger[player]; break;
                     case "Y": a = bounceOrRoute[player]; break;
                     case "Move": a = move[player]; break;
@@ -145,8 +140,6 @@ namespace PinballDodgeball
         // ===================== Input Actions =====================
 
         static readonly InputActionMap[] maps = new InputActionMap[2];
-        static readonly InputAction[] flipTop = new InputAction[2];
-        static readonly InputAction[] flipBottom = new InputAction[2];
         static readonly InputAction[] catchOrPlunger = new InputAction[2];
         static readonly InputAction[] bounceOrRoute = new InputAction[2];
         static readonly InputAction[] move = new InputAction[2];
@@ -161,7 +154,7 @@ namespace PinballDodgeball
             for (int p = 0; p < 2; p++)
             {
                 maps[p] = null;
-                flipTop[p] = flipBottom[p] = catchOrPlunger[p] = bounceOrRoute[p] = move[p] = null;
+                catchOrPlunger[p] = bounceOrRoute[p] = move[p] = null;
             }
         }
 
@@ -178,8 +171,6 @@ namespace PinballDodgeball
                     var map = asset != null ? asset.FindActionMap(names[p], false) : null;
                     if (map == null) continue;
                     maps[p] = map;
-                    flipTop[p] = map.FindAction("FlipperTop", false);
-                    flipBottom[p] = map.FindAction("FlipperBottom", false);
                     catchOrPlunger[p] = map.FindAction("BlockerCatch", false) ?? map.FindAction("Plunger", false);
                     bounceOrRoute[p] = map.FindAction("BlockerBounce", false) ?? map.FindAction("RouteToggle", false);
                     move[p] = map.FindAction("MoveBlockers", false);
@@ -274,8 +265,6 @@ namespace PinballDodgeball
             {
                 if (player == 0)
                 {
-                    s.flipL = kb.wKey.isPressed;
-                    s.flipR = kb.sKey.isPressed;
                     s.b = kb.dKey.isPressed || kb.spaceKey.isPressed;
                     s.y = kb.aKey.isPressed;
                     s.move = new Vector2((kb.hKey.isPressed ? 1f : 0f) - (kb.fKey.isPressed ? 1f : 0f),
@@ -283,8 +272,6 @@ namespace PinballDodgeball
                 }
                 else
                 {
-                    s.flipL = kb.upArrowKey.isPressed;
-                    s.flipR = kb.downArrowKey.isPressed;
                     s.b = kb.leftArrowKey.isPressed;
                     s.y = kb.rightArrowKey.isPressed;
                     s.move = new Vector2((kb.lKey.isPressed ? 1f : 0f) - (kb.jKey.isPressed ? 1f : 0f),
@@ -295,8 +282,6 @@ namespace PinballDodgeball
             if (player >= 0 && player < pads.Count)
             {
                 var g = pads[player];
-                s.flipL |= g.leftShoulder.isPressed;
-                s.flipR |= g.rightShoulder.isPressed;
                 s.b |= g.rightShoulder.isPressed;
                 s.y |= g.leftShoulder.isPressed;
                 Vector2 stick = g.leftStick.ReadValue();
@@ -308,8 +293,6 @@ namespace PinballDodgeball
         {
             if (player == 0)
             {
-                s.flipL = Input.GetKey(KeyCode.W);
-                s.flipR = Input.GetKey(KeyCode.S);
                 s.b = Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.Space);
                 s.y = Input.GetKey(KeyCode.A);
                 s.move = new Vector2((Input.GetKey(KeyCode.H) ? 1f : 0f) - (Input.GetKey(KeyCode.F) ? 1f : 0f),
@@ -317,8 +300,6 @@ namespace PinballDodgeball
             }
             else
             {
-                s.flipL = Input.GetKey(KeyCode.UpArrow);
-                s.flipR = Input.GetKey(KeyCode.DownArrow);
                 s.b = Input.GetKey(KeyCode.LeftArrow);
                 s.y = Input.GetKey(KeyCode.RightArrow);
                 s.move = new Vector2((Input.GetKey(KeyCode.L) ? 1f : 0f) - (Input.GetKey(KeyCode.J) ? 1f : 0f),
@@ -333,16 +314,14 @@ namespace PinballDodgeball
             {
                 switch (id)
                 {
-                    case "L": case "Y": return "LB";
-                    case "R": case "B": return "RB";
+                    case "Y": return "LB";
+                    case "B": return "RB";
                     case "Move": return "L スティック";
                 }
             }
             bool p1 = player == 0;
             switch (id)
             {
-                case "L": return p1 ? "W" : "↑";
-                case "R": return p1 ? "S" : "↓";
                 case "B": return p1 ? "D / Space" : "←";
                 case "Y": return p1 ? "A" : "→";
                 case "Move": return p1 ? "TFGH" : "IJKL";

@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using UnityEditor;
 using UnityEngine;
 
@@ -47,7 +47,7 @@ namespace PinballFrontend.EditorTools
             var dodge = Write(dPath, new[]
             {
                 Page("ルール", ImageDir + "/Dodgeball_Rules.png",
-                    "{L} {R} で打ち返して、相手に当てろ！"),
+                    "{Catch} でキャッチして投げ、相手に当てろ！"),
                 Page("操作", ImageDir + "/Dodgeball_Controls.png",
                     "{ControlsTable}"),
                 Page("サーブ", ImageDir + "/Dodgeball_Serve.png",

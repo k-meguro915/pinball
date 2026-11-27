@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace PinballDodgeball
 {
@@ -134,7 +134,7 @@ namespace PinballDodgeball
 
         /// <summary>
         /// この外野がすり抜ける球（キャッチしない）：
-        /// サーブの球（フリッパー・選手に触れるまで）、持ち主のコースターの射出装置が撃った球（自分の外野が取ってしまわないように）
+        /// サーブの球（選手に触れるまで）、持ち主のコースターの射出装置が撃った球（自分の外野が取ってしまわないように）
         /// </summary>
         bool PassesThrough(DBBall ball)
         {

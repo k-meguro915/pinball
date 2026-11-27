@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace PinballDodgeball
 {
@@ -18,7 +18,7 @@ namespace PinballDodgeball
         GUIStyle label, title, panel, center;
         float lastScale = -1f;
 
-        const int ItemMode = 0, ItemCpu = 1, ItemOutfield = 2, ItemShoot = 3, ItemFlipP1 = 4, ItemFlipP2 = 5, ItemStart = 6, ItemCount = 7;
+        const int ItemMode = 0, ItemCpu = 1, ItemOutfield = 2, ItemStart = 3, ItemCount = 4;
 
         void Update()
         {
@@ -58,16 +58,6 @@ namespace PinballDodgeball
                 case ItemOutfield:
                     gm.outfieldControl = gm.outfieldControl == DBGameManager.OutfieldControl.Auto
                         ? DBGameManager.OutfieldControl.Buttons : DBGameManager.OutfieldControl.Auto;
-                    break;
-                case ItemShoot:
-                    gm.shootControl = gm.shootControl == DBGameManager.ShootControl.Auto
-                        ? DBGameManager.ShootControl.Buttons : DBGameManager.ShootControl.Auto;
-                    break;
-                case ItemFlipP1:
-                    gm.flipperAuto[0] = !gm.flipperAuto[0];
-                    break;
-                case ItemFlipP2:
-                    if (!gm.IsCpu(1)) gm.flipperAuto[1] = !gm.flipperAuto[1];
                     break;
             }
         }
@@ -112,7 +102,7 @@ namespace PinballDodgeball
             GUILayout.BeginArea(new Rect(r.x + 30f * k, r.y + 20f * k, r.width - 60f * k, r.height - 40f * k));
             GUILayout.Label("ピンボール ドッジボール（α）", title);
             GUILayout.Space(10f * k);
-            GUILayout.Label("相手の選手（ブロッカー 3 人）を全員アウトにしたら勝ち。\nアウトになった選手は相手陣地の左右（選手の範囲のすぐ外）で外野になる。外野は動けないが、球を自動でキャッチする。外野が投げた球で相手をアウトにすると戻ってくる。\n球の色 = いま誰の球か（白 = 誰の球でもない）。相手の色の球に当たるとアウト。\n球が来る直前にキャッチのボタン（パッドは RB）を押してキャッチ（ジャストキャッチ）すると、投げる球がパワーショット（速い球）になる。\nフリッパーの間から球を落とすと、相手のシュートポスト（自陣の角）から斜め後ろへ速い球を撃たれる。\n相手陣地の壁ぎわのドロップターゲットを 3 つ倒すと、自分のシュートポストから撃てる。中立地帯のスピナーを通ると球の向きが少しぶれ、勢いよく通すと加速する。\n右のフリッパーで左へ寄せて打った球を、相手の陣地の入口（自分の色の帯）に入れると、壁ぞいのレーンを走った先の射出装置から、相手の内野の選手へ横・後ろから撃ち出される。\nガイドの上の矢印の帯は加速レーン。転がり落ちる球をフリッパーへ速く運ぶ。", label);
+            GUILayout.Label("相手の選手（ブロッカー 3 人）を全員アウトにしたら勝ち。\nアウトになった選手は相手陣地の左右（選手の範囲のすぐ外）で外野になる。外野は動けないが、球を自動でキャッチする。外野が投げた球で相手をアウトにすると戻ってくる。\n球の色 = いま誰の球か（白 = 誰の球でもない）。相手の色の球に当たるとアウト。\n球が来る直前にキャッチのボタン（パッドは RB）を押してキャッチ（ジャストキャッチ）すると、投げる球がパワーショット（速い球）になる。\n奥へ転がった球は、背面の加速レーン（奥の真ん中の入口）に入ると、半円にそって中央の線の手前まで運ばれ、白い球（誰の球でもない）になって出てくる。入口の左右のバンパーは球をはじく。中立地帯のスピナーを通ると球の向きが少しぶれる。\n投げた球を相手の陣地の入口（自分の色の帯）に入れると、壁ぞいのレーンを走った先の射出装置から、相手の内野の選手へ横・後ろから撃ち出される。", label);
             GUILayout.Space(16f * k);
 
             Item(ItemMode, "モード", gm.mode == DBGameManager.Mode.VsCpu ? "VS CPU" : "1 VS 1");
@@ -121,9 +111,6 @@ namespace PinballDodgeball
             else
                 Item(ItemCpu, "CPU の強さ", "―");
             Item(ItemOutfield, "外野の投げ方", gm.outfieldControl == DBGameManager.OutfieldControl.Auto ? "全自動" : "ボタン（RB で投げる・スティックの上下で向き）");
-            Item(ItemShoot, "シュートポストの撃ち方", gm.shootControl == DBGameManager.ShootControl.Auto ? "全自動" : "ボタン（RB で撃つ・スティックの左右で向き）");
-            Item(ItemFlipP1, "P1 のフリッパー", gm.flipperAuto[0] ? "自動" : "手動");
-            Item(ItemFlipP2, (gm.IsCpu(1) ? "CPU" : "P2") + " のフリッパー", gm.IsCpu(1) ? "自動（CPU）" : (gm.flipperAuto[1] ? "自動" : "手動"));
             Item(ItemStart, "▶ スタート", "");
 
             GUILayout.Space(10f * k);
@@ -168,11 +155,7 @@ namespace PinballDodgeball
                     for (int i = 0; i < bank.Count; i++) tsb.Append(bank.IsDown(i) ? "<color=" + col + ">●</color>" : "○");
                 }
                 if (tsb.Length > 0) sb.Append("ターゲット").Append(tsb).Append("\n");
-                var myPost = gm.LoadedShootPost(p);
-                if (myPost != null)
-                    sb.Append("<color=#ffd84a>").Append(myPost.autoFire ? "シュートポスト セット" : "シュートポスト セット（" + Key(p, "B") + " で撃つ）").Append("</color>\n");
-                if (gm.LoadedShootPost(DBConst.Opponent(p)) != null)
-                    sb.Append("<color=#ff6060>シュートポストから来る！</color>\n");
+                if (gm.PowerReady(p)) sb.Append("<color=#ffd84a>次の球はパワーショット</color>\n");
                 if (gm.OutfieldHolding(p))
                     sb.Append(gm.outfieldControl == DBGameManager.OutfieldControl.Auto || gm.IsCpu(p)
                         ? "外野がキャッチ中\n" : "外野がキャッチ中（" + Key(p, "B") + " で投げる）\n");
@@ -186,10 +169,8 @@ namespace PinballDodgeball
             }
 
             sb.Append("<size=").Append(Mathf.RoundToInt(baseFontSize * 0.7f * k)).Append(">");
-            if (gm.IsCpu(p) || gm.flipperAuto[p]) sb.Append("フリッパー：自動\n");
-            else sb.Append(Key(p, "L")).Append(" / ").Append(Key(p, "R")).Append("：フリッパー\n");
             sb.Append(Key(p, "Move")).Append("：選手を動かす\n");
-            sb.Append(Key(p, "B")).Append("：発射（長押しで強く）・キャッチ（押している間。球が来る直前に押すとジャストキャッチ）\n");
+            sb.Append(Key(p, "B")).Append("：発射（長押しで強く）・キャッチ（押している間。球が来る直前に押すとジャストキャッチ）・投げる（離す）\n");
             sb.Append(Key(p, "Y")).Append("：サーブのルート切り替え");
             if (gm.outfieldControl == DBGameManager.OutfieldControl.Buttons && !gm.IsCpu(p))
                 sb.Append("\n外野：").Append(Key(p, "B")).Append(" で投げる、").Append(Key(p, "Move")).Append(" の上下で向き");

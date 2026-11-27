@@ -178,8 +178,8 @@ Draw-ControlsImage "Versus_Controls.png" `
 
 # ドッジボール：操作
 Draw-ControlsImage "Dodgeball_Controls.png" `
-    @{ Head = "LB"; Lines = @("左フリッパー", "ルート切替") } `
-    @{ Head = "RB"; Lines = @("右フリッパー", "サーブ・キャッチ") } `
+    @{ Head = "LB"; Lines = @("ルート切替") } `
+    @{ Head = "RB"; Lines = @("サーブ・キャッチ", "離して投げる") } `
     @{ Head = "L スティック"; Lines = @("選手移動") }
 
 # ================================================================

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -31,12 +31,12 @@ namespace PinballDodgeball.EditorTools
             var t = root.transform;
 
             BuildFloorAndWalls(t, out var doors);
-            BuildGuides(t);
-            var posts = BuildShootPosts(t);
-            var flippers = BuildMainFlippers(t);
-            BuildBumpers(t);
-            var banks = BuildDropTargets(t);
+            // 2026-11-27：中央の線のバンパー（BuildBumpers）とドロップターゲット（BuildDropTargets）は一度外した。戻すときは呼び直す
+            var banks = new DBDropTargetBank[0];
+            BuildBackLanes(t);
+            BuildBackBumpers(t);
             BuildSpinners(t);
+            BuildDecor(t);
             var coasters = BuildCoasters(t);
             var rows = BuildBlockerRows(t);
             var lanes = BuildLanes(t, doors);
@@ -45,7 +45,7 @@ namespace PinballDodgeball.EditorTools
             var outfieldRoot = new GameObject("Outfield").transform;
             outfieldRoot.SetParent(t, false);
 
-            var gm = SetupGame(ball, rows, lanes, flippers, posts, banks, coasters, outfieldRoot);
+            var gm = SetupGame(ball, rows, lanes, banks, coasters, outfieldRoot);
             SetupCamera();
             SetupLight();
 
@@ -86,8 +86,17 @@ namespace PinballDodgeball.EditorTools
                 { "Spinner", Mat("DB_Spinner", new Color(0.4f, 0.95f, 0.95f)) },
                 { "SpinnerDark", Mat("DB_Spinner_Dark", new Color(0.12f, 0.35f, 0.4f)) },
                 { "Coaster", Mat("DB_Coaster", new Color(0.55f, 0.6f, 0.7f)) },
-                { "Booster", Mat("DB_Booster", new Color(0.3f, 1f, 0.6f)) },
-                { "BoosterDim", Mat("DB_Booster_Dim", Color.Lerp(floor, new Color(0.3f, 1f, 0.6f), 0.18f)) },
+                { "BoostPad", Mat("DB_BoostPad", new Color(0.3f, 1f, 0.6f)) },
+                { "BoostPadDim", Mat("DB_BoostPad_Dim", Color.Lerp(floor, new Color(0.3f, 1f, 0.6f), 0.18f)) },
+                { "Corner", Mat("DB_BackLane_Corner", new Color(0.17f, 0.19f, 0.26f)) },
+                { "Gate", Mat("DB_BackLane_Gate", new Color(1f, 0.85f, 0.29f)) },
+                { "Line", Mat("DB_Line", new Color(0.85f, 0.88f, 0.95f)) },
+                { "Stand", Mat("DB_Stand", new Color(0.18f, 0.2f, 0.28f)) },
+                { "Crowd1", Mat("DB_Crowd_1", new Color(0.9f, 0.75f, 0.6f)) },
+                { "Crowd2", Mat("DB_Crowd_2", new Color(0.45f, 0.5f, 0.6f)) },
+                { "Crowd3", Mat("DB_Crowd_3", new Color(0.95f, 0.95f, 0.98f)) },
+                { "LightPole", Mat("DB_Light_Pole", new Color(0.4f, 0.42f, 0.5f)) },
+                { "LightLamp", Mat("DB_Light_Lamp", new Color(1f, 0.97f, 0.85f)) },
                 { "Ball", Mat("DB_Ball", new Color(0.92f, 0.92f, 0.96f)) },
                 { "P1", Mat("DB_P1", p1) },
                 { "P2", Mat("DB_P2", p2) },
@@ -215,108 +224,225 @@ namespace PinballDodgeball.EditorTools
             return new DoorInfo { col = go.GetComponent<Collider>(), rend = go.GetComponent<Renderer>() };
         }
 
-        static void BuildGuides(Transform t)
-        {
-            var g = new GameObject("Guides").transform;
-            g.SetParent(t, false);
-            for (int p = 0; p < 2; p++)
-            {
-                float zs = -DBConst.Sign(p); // 自陣の Z の符号
-                for (int s = -1; s <= 1; s += 2)
-                {
-                    var a = new Vector3(s * (DBConst.PlayHalfWidth + 0.1f), 0f, zs * (DBConst.GuideWallZ - 0.1f * DBConst.GuideSlope));
-                    var b = new Vector3(s * DBConst.FlipperPivotX, 0f, zs * DBConst.FlipperPivotZ);
-                    WallBetween((p == 0 ? "P1" : "P2") + " Guide " + (s < 0 ? "L" : "R"), g, a, b, DBConst.GuideThickness, mats["Wall"]);
-                    BuildGuideBooster((p == 0 ? "P1" : "P2") + " Guide Booster " + (s < 0 ? "L" : "R"), g, a, b, zs);
-                }
-            }
-        }
-
         /// <summary>
-        /// ガイドの加速レーン：ガイドの上の面に沿った細長いトリガー（フリッパーの手前で終わる）と、床の矢じり（見た目）。
-        /// root をガイドの向き（壁 → フリッパー）に回して置く
+        /// 背面の加速レーン（2026-11-27。図面：Docs/図面_ドッジボールの背面レーン.svg）。各陣地に 1 本（点対称）。
+        /// 奥の真ん中の入口（内側の壁のすき間）から左右に分かれ、半円にそって横の壁ぞいに中央の線の手前まで運ぶ。
+        /// ・加速：DBBoostPad の帯を BackLaneSegmentDeg ごとにつなぐ（入った球は誰の球でもなくなる）。真ん中の帯は、入ったときの球の向きで左右を決める
+        /// ・壁：内側の壁（入口のすき間あり）と、外側の半円の壁。外側の角はふさぐ（見た目の板）
+        /// ・出口：外側の短い板で内側へ BackLaneExitAngle° 向ける。一方通行のふた（DBOneWayGate）で、外からは入れない
         /// </summary>
-        static void BuildGuideBooster(string name, Transform parent, Vector3 wallEnd, Vector3 pivot, float zs)
+        static void BuildBackLanes(Transform t)
         {
-            Vector3 dir = DBUtil.Flat(pivot - wallEnd).normalized;
-            Vector3 n = new Vector3(-dir.z, 0f, dir.x);
-            if (n.z * -zs < 0f) n = -n; // 盤面の中央側へ
-            float len = DBUtil.Flat(pivot - wallEnd).magnitude - DBConst.GuideBoosterEndMargin;
-            float w = DBConst.GuideBoosterWidth;
-            Vector3 center = DBUtil.Flat(wallEnd) + dir * (len * 0.5f) + n * (DBConst.GuideThickness * 0.5f + w * 0.5f);
-
-            var root = new GameObject(name);
-            root.transform.SetParent(parent, false);
-            root.transform.SetPositionAndRotation(new Vector3(center.x, DBConst.BallY, center.z), Quaternion.Euler(0f, DBUtil.YawOf(dir), 0f));
-            var trig = root.AddComponent<BoxCollider>();
-            trig.isTrigger = true;
-            trig.size = new Vector3(w, 1f, len);
-
-            // 床：帯（うすく）と、フリッパーの方を指す矢じり（ローカルの +Z がフリッパーの方）
-            Box("Lane", root.transform, new Vector3(0f, 0.004f - DBConst.BallY, 0f), new Vector3(w, 0.008f, len), mats["BoosterDim"], false);
-            int count = Mathf.Max(1, Mathf.FloorToInt(len / 0.9f));
-            for (int i = 0; i < count; i++)
-            {
-                float z = -len * 0.5f + (i + 0.5f) * (len / count);
-                for (int e = -1; e <= 1; e += 2)
-                    Box("Chevron", root.transform, new Vector3(e * 0.12f, 0.008f - DBConst.BallY, z), new Vector3(0.05f, 0.008f, 0.3f), mats["Booster"], false, -e * 35f);
-            }
-
-            var bo = root.AddComponent<DBGuideBooster>();
-            bo.direction = dir;
-        }
-
-        /// <summary>シュートポスト：各陣地のガイドと外壁の角を埋める三角柱を 1 つずつ（4 つ）。持ち主はその陣地の相手</summary>
-        static DBShootPost[] BuildShootPosts(Transform t)
-        {
-            var g = new GameObject("Shoot Posts").transform;
+            var g = new GameObject("Back Lanes").transform;
             g.SetParent(t, false);
-            var list = new DBShootPost[4];
-            int n = 0;
+            float rIn = DBConst.BackLaneInnerR, rOut = DBConst.BackLaneOuterR, rMid = DBConst.BackLaneMidR;
+            float wt = DBConst.BackLaneWallThickness, seg = DBConst.BackLaneSegmentDeg;
+            float width = rOut - rIn;
+            float gapDeg = Mathf.Asin(DBConst.BackLaneGapHalf / rIn) * Mathf.Rad2Deg;
+            float W = DBConst.PlayHalfWidth;
+
             for (int territory = 0; territory < 2; territory++)
             {
-                int owner = DBConst.Opponent(territory);
+                float zs = -DBConst.Sign(territory);
+                string tn = territory == 0 ? "P1" : "P2";
+                var root = new GameObject(tn + " 陣地 Back Lane").transform;
+                root.SetParent(g, false);
+
+                // ---- 床：レーンの帯（半円 + まっすぐ）と、外側の角をふさぐ板（見た目） ----
+                var band = new GameObject("Lane Floor");
+                band.transform.SetParent(root, false);
+                band.AddComponent<MeshFilter>().sharedMesh = BandMesh(territory, rIn, rOut, "DB_BackLane_Floor_" + tn);
+                band.AddComponent<MeshRenderer>().sharedMaterial = mats["BoostPadDim"];
                 for (int s = -1; s <= 1; s += 2)
                 {
-                    DBConst.ShootPostTriangle(territory, s, out var c, out var w, out var gEnd);
-                    Vector3 mid = (w + gEnd) * 0.5f;
-                    string name = (owner == 0 ? "P1" : "P2") + " Shoot Post (" + (territory == 0 ? "P1" : "P2") + " 陣地 " + (s < 0 ? "L" : "R") + ")";
-                    var root = new GameObject(name);
-                    root.transform.SetParent(g, false);
-                    root.transform.position = mid;
+                    FloorPlate("Lane Floor Straight", root, new Vector3(s * rMid, 0f, zs * (DBConst.BackLaneCenterZ + DBConst.BackLaneExitZ) * 0.5f),
+                        new Vector3(width, 0f, DBConst.BackLaneCenterZ - DBConst.BackLaneExitZ), mats["BoostPadDim"]);
+                    var corner = new GameObject("Corner Fill " + (s < 0 ? "L" : "R"));
+                    corner.transform.SetParent(root, false);
+                    corner.AddComponent<MeshFilter>().sharedMesh = CornerMesh(territory, s, rOut, "DB_BackLane_Corner_" + tn + (s < 0 ? "L" : "R"));
+                    corner.AddComponent<MeshRenderer>().sharedMaterial = mats["Corner"];
+                }
 
-                    // 本体：三角柱（当たり判定あり。当たっても何も起きない）
-                    var body = new GameObject("Body");
-                    body.transform.SetParent(root.transform, false);
-                    var mesh = PrismMesh(new[] { c - mid, w - mid, gEnd - mid }, DBConst.ShootPostHeight,
-                        "DB_ShootPost_" + (territory == 0 ? "P1" : "P2") + (s < 0 ? "L" : "R"));
-                    body.AddComponent<MeshFilter>().sharedMesh = mesh;
-                    body.AddComponent<MeshRenderer>().sharedMaterial = mats["Post"];
-                    body.AddComponent<MeshCollider>().sharedMesh = mesh;
+                // ---- 壁 ----
+                // 外側の半円（横の壁・奥の壁の内側に接する。角の死角をふさぐ）
+                for (float a = -90f; a < 90f - 1e-3f; a += seg)
+                    ArcWall("Outer Wall", root, territory, a, a + seg, rOut + wt * 0.5f, wt);
+                // 内側の半円（真ん中に入口のすき間）とまっすぐな部分
+                for (int s = -1; s <= 1; s += 2)
+                {
+                    float a0 = gapDeg;
+                    while (a0 < 90f - 1e-3f)
+                    {
+                        float a1 = Mathf.Min(90f, Mathf.Ceil((a0 + 1e-3f) / seg) * seg);
+                        ArcWall("Inner Wall", root, territory, s * a0, s * a1, rIn - wt * 0.5f, wt);
+                        a0 = a1;
+                    }
+                    var w0 = new Vector3(s * (rIn - wt * 0.5f), 0f, zs * DBConst.BackLaneCenterZ);
+                    var w1 = new Vector3(s * (rIn - wt * 0.5f), 0f, zs * DBConst.BackLaneExitZ);
+                    WallBetween("Inner Wall Straight", root, w0, w1, wt, mats["Wall"]);
 
-                    // 持ち主の色のランプ（面の後ろ側。セットされている間は点滅）
-                    Vector3 centroid = (c + w + gEnd) / 3f;
-                    var lamp = DBUtil.Primitive(PrimitiveType.Cylinder, "Lamp", root.transform,
-                        new Vector3(centroid.x - mid.x, DBConst.ShootPostHeight + 0.02f, centroid.z - mid.z), Quaternion.identity,
-                        new Vector3(0.35f, 0.02f, 0.35f), PM(owner), false);
+                    // 出口の板（外側。内側へ BackLaneExitAngle° 向ける）
+                    float ea = DBConst.BackLaneExitAngle * Mathf.Deg2Rad;
+                    var d0 = new Vector3(s * (W - 0.02f), 0f, zs * DBConst.BackLaneExitZ);
+                    var d1 = d0 + new Vector3(-s * Mathf.Sin(ea), 0f, -zs * Mathf.Cos(ea)) * 1.0f;
+                    WallBetween("Exit Deflector", root, d0, d1, wt, mats["Wall"]);
 
-                    var sp = root.AddComponent<DBShootPost>();
-                    sp.owner = owner;
-                    sp.territory = territory;
-                    sp.cornerSide = s;
-                    sp.faceA = w;
-                    sp.faceB = gEnd;
-                    sp.corner = c;
-                    sp.lamp = lamp.GetComponent<Renderer>();
+                    // 一方通行のふた（出口の線の上。軸は外側の壁の側）
+                    var gateRoot = new GameObject("Exit Gate " + (s < 0 ? "L" : "R"));
+                    gateRoot.transform.SetParent(root, false);
+                    float gx = s * (rIn + rOut) * 0.5f;
+                    gateRoot.transform.position = new Vector3(gx, DBConst.WallHeight * 0.5f, zs * DBConst.BackLaneExitZ);
+                    var gcol = gateRoot.AddComponent<BoxCollider>();
+                    gcol.size = new Vector3(width, DBConst.WallHeight, 0.06f);
+                    var hinge = new GameObject("Hinge").transform;
+                    hinge.SetParent(gateRoot.transform, false);
+                    hinge.localPosition = new Vector3(s * width * 0.5f, 0f, 0f);
+                    Box("Flap", hinge, new Vector3(-s * width * 0.5f, 0f, 0f), new Vector3(width, DBConst.WallHeight * 0.8f, 0.05f), mats["Gate"], false);
+                    var gate = gateRoot.AddComponent<DBOneWayGate>();
+                    gate.allowed = new Vector3(0f, 0f, -zs);
+                    gate.gateCollider = gcol;
+                    gate.hinge = hinge;
+                    // 開く向き：板の先（内側の壁の側）が、出ていく向きへ回る
+                    gate.openAngle = 75f * (s * zs < 0f ? 1f : -1f);
+                }
 
-                    // 撃つ向きの目印（床、見た目のみ）
-                    Vector3 dir = sp.BaseDir;
-                    FloorPlate("Aim Mark", root.transform, sp.FaceMid + dir * 0.75f, new Vector3(0.08f, 0f, 0.6f),
-                        mats[owner == 0 ? "P1Mark" : "P2Mark"], DBUtil.YawOf(dir));
-                    list[n++] = sp;
+                // ---- 加速の帯（入口の真ん中、半円、まっすぐ） ----
+                float h = 1f;
+                {
+                    // 真ん中（奥の真ん中 ±seg）：入ったときの球の向きで左右を決める
+                    Vector3 c = DBConst.BackLanePoint(territory, 0f, rMid);
+                    var pad = Pad("Pad Center", root, c, Vector3.right, new Vector3(width, h, 2f * rMid * Mathf.Sin(seg * Mathf.Deg2Rad) + 0.12f));
+                    pad.chooseSideByVelocity = true;
+                    // 入口の目印（三角。見た目だけ）
+                    var tri = DBUtil.Primitive(PrimitiveType.Cube, "Entrance Mark", root, Vector3.zero, Quaternion.Euler(0f, 45f, 0f),
+                        new Vector3(0.45f, 0.01f, 0.45f), mats["Gate"], false);
+                    tri.transform.position = new Vector3(c.x, 0.01f, c.z);
+                }
+                for (int s = -1; s <= 1; s += 2)
+                {
+                    for (float a = seg; a < 90f - 1e-3f; a += seg)
+                    {
+                        float am = a + seg * 0.5f;
+                        Vector3 c = DBConst.BackLanePoint(territory, s * am, rMid);
+                        Vector3 dir = DBConst.BackLaneTangent(territory, s * am);
+                        float len = 2f * rMid * Mathf.Sin(seg * 0.5f * Mathf.Deg2Rad) + 0.12f;
+                        Pad("Pad Arc", root, c, dir, new Vector3(width, h, len));
+                    }
+                    float sl = DBConst.BackLaneCenterZ - DBConst.BackLaneExitZ;
+                    Pad("Pad Straight", root, new Vector3(s * rMid, DBConst.BallY, zs * (DBConst.BackLaneCenterZ + DBConst.BackLaneExitZ) * 0.5f),
+                        new Vector3(0f, 0f, -zs), new Vector3(width, h, sl + 0.12f));
                 }
             }
-            return list;
+        }
+
+        /// <summary>加速の帯（トリガー）を 1 つ置く。dir = 押す向き。size = (幅, 高さ, 長さ)（dir の向きが長さ）</summary>
+        static DBBoostPad Pad(string name, Transform parent, Vector3 center, Vector3 dir, Vector3 size)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.SetPositionAndRotation(new Vector3(center.x, DBConst.BallY, center.z), Quaternion.Euler(0f, DBUtil.YawOf(dir), 0f));
+            var trig = go.AddComponent<BoxCollider>();
+            trig.isTrigger = true;
+            trig.size = size;
+            var arrows = new List<Renderer>();
+            for (int e = -1; e <= 1; e += 2)
+            {
+                var a = Box("Arrow", go.transform, new Vector3(e * 0.13f, 0.008f - DBConst.BallY, 0f), new Vector3(0.06f, 0.008f, 0.34f), mats["BoostPad"], false, -e * 35f);
+                arrows.Add(a.GetComponent<Renderer>());
+            }
+            var bp = go.AddComponent<DBBoostPad>();
+            bp.direction = dir;
+            bp.clearOwner = true;
+            bp.acceleration = 25f;
+            bp.maxAlongSpeed = 16f;
+            bp.arrows = arrows.ToArray();
+            return bp;
+        }
+
+        /// <summary>半径 r の円の上、角度 a0 → a1 の弦に沿った壁（両端を少し延ばして、すき間をなくす）</summary>
+        static void ArcWall(string name, Transform parent, int territory, float a0, float a1, float r, float thickness)
+        {
+            Vector3 p0 = DBConst.BackLanePoint(territory, a0, r), p1 = DBConst.BackLanePoint(territory, a1, r);
+            Vector3 d = DBUtil.Flat(p1 - p0).normalized * (thickness * 0.5f);
+            WallBetween(name, parent, DBUtil.Flat(p0) - d, DBUtil.Flat(p1) + d, thickness, mats["Wall"]);
+        }
+
+        /// <summary>レーンの床の半円の帯（rIn〜rOut）のメッシュ（Generated に保存）</summary>
+        static Mesh BandMesh(int territory, float rIn, float rOut, string name)
+        {
+            var verts = new List<Vector3>();
+            var normals = new List<Vector3>();
+            var idx = new List<int>();
+            const int n = 48;
+            for (int i = 0; i < n; i++)
+            {
+                float a0 = -90f + 180f * i / n, a1 = -90f + 180f * (i + 1) / n;
+                Vector3 i0 = Lift(DBConst.BackLanePoint(territory, a0, rIn)), i1 = Lift(DBConst.BackLanePoint(territory, a1, rIn));
+                Vector3 o0 = Lift(DBConst.BackLanePoint(territory, a0, rOut)), o1 = Lift(DBConst.BackLanePoint(territory, a1, rOut));
+                Face(verts, normals, idx, i0, o0, o1, Vector3.up);
+                Face(verts, normals, idx, i0, o1, i1, Vector3.up);
+            }
+            return SaveMesh(name, verts, normals, idx);
+        }
+
+        /// <summary>外側の角（横の壁・奥の壁・外側の半円で囲まれた所）をふさぐ板のメッシュ。side = 画面の左 -1 / 右 +1</summary>
+        static Mesh CornerMesh(int territory, int side, float rOut, string name)
+        {
+            float zs = -DBConst.Sign(territory);
+            Vector3 corner = new Vector3(side * DBConst.PlayHalfWidth, 0.006f, zs * DBConst.PlayHalfLength);
+            var verts = new List<Vector3>();
+            var normals = new List<Vector3>();
+            var idx = new List<int>();
+            const int n = 24;
+            for (int i = 0; i < n; i++)
+            {
+                float a0 = side * 90f * i / n, a1 = side * 90f * (i + 1) / n;
+                Face(verts, normals, idx, corner, Lift(DBConst.BackLanePoint(territory, a0, rOut)), Lift(DBConst.BackLanePoint(territory, a1, rOut)), Vector3.up);
+            }
+            return SaveMesh(name, verts, normals, idx);
+        }
+
+        static Vector3 Lift(Vector3 p) => new Vector3(p.x, 0.006f, p.z);
+
+        static Mesh SaveMesh(string name, List<Vector3> verts, List<Vector3> normals, List<int> idx)
+        {
+            string path = MatDir + "/" + name + ".asset";
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+            bool isNew = mesh == null;
+            if (isNew) mesh = new Mesh();
+            mesh.Clear();
+            mesh.name = name;
+            mesh.SetVertices(verts);
+            mesh.SetNormals(normals);
+            mesh.SetTriangles(idx, 0);
+            mesh.RecalculateBounds();
+            if (isNew) AssetDatabase.CreateAsset(mesh, path);
+            EditorUtility.SetDirty(mesh);
+            return mesh;
+        }
+
+        /// <summary>背面のバンパー：入口の左右に 2 つずつ（各陣地 4 つ）。はじく向きは内側（入口の方）か陣地の方</summary>
+        static void BuildBackBumpers(Transform t)
+        {
+            var g = new GameObject("Back Bumpers").transform;
+            g.SetParent(t, false);
+            float d = DBConst.BumperRadius * 2f;
+            for (int territory = 0; territory < 2; territory++)
+            {
+                float zs = -DBConst.Sign(territory);
+                for (int k = 0; k < DBConst.BackBumperAngles.Length; k++)
+                    for (int s = -1; s <= 1; s += 2)
+                    {
+                        var go = DBUtil.Primitive(PrimitiveType.Cylinder, (territory == 0 ? "P1" : "P2") + " 陣地 Back Bumper", g,
+                            DBConst.BackBumperPosition(territory, s, k), Quaternion.identity, new Vector3(d, 0.3f, d), mats["Bumper"], true);
+                        var bm = go.AddComponent<DBBumper>();
+                        bm.flashRenderer = go.GetComponent<Renderer>();
+                        // 向かい合ったバンパーどうしでラリーにならないよう、はじく向きに必ず中央の線の方を入れる
+                        bm.useInwardRule = false;
+                        bm.biasDirection = new Vector3(0f, 0f, -zs);
+                        bm.minBias = 0.45f;
+                    }
+            }
         }
 
         /// <summary>
@@ -366,27 +492,6 @@ namespace PinballDodgeball.EditorTools
             verts.Add(a); verts.Add(b); verts.Add(c);
             normals.Add(normal); normals.Add(normal); normals.Add(normal);
             idx.Add(i0); idx.Add(i0 + 1); idx.Add(i0 + 2);
-        }
-
-        static DBFlipper[] BuildMainFlippers(Transform t)
-        {
-            var g = new GameObject("Flippers").transform;
-            g.SetParent(t, false);
-            var list = new DBFlipper[4];
-            for (int p = 0; p < 2; p++)
-            {
-                float zs = -DBConst.Sign(p);
-                for (int s = -1; s <= 1; s += 2)
-                {
-                    var pivot = new Vector3(s * DBConst.FlipperPivotX, 0f, zs * DBConst.FlipperPivotZ);
-                    float rest = DBFlipper.MainYaw(p, s, DBConst.FlipperRestAngle);
-                    float active = DBFlipper.MainYaw(p, s, DBConst.FlipperActiveAngle);
-                    var f = DBFlipper.Build((p == 0 ? "P1" : "P2") + " Flipper " + (s < 0 ? "L" : "R"), g, pivot, p, s,
-                        rest, active, DBConst.FlipperLength, DBConst.FlipperRadius, PM(p));
-                    list[p * 2 + (s > 0 ? 1 : 0)] = f;
-                }
-            }
-            return list;
         }
 
         static void BuildBumpers(Transform t)
@@ -491,6 +596,69 @@ namespace PinballDodgeball.EditorTools
                 var sp = root.AddComponent<DBSpinner>();
                 sp.plate = rotor.transform;
             }
+        }
+
+        // ------------------------------------------------------------------
+        // ドッジボール台の専用ギミック（2026-11-27）
+
+        /// <summary>見た目だけ：コートの線、横の観客席、四隅の照明（当たり判定なし）</summary>
+        static void BuildDecor(Transform t)
+        {
+            var g = new GameObject("Decor").transform;
+            g.SetParent(t, false);
+            float W = DBConst.PlayHalfWidth, L = DBConst.PlayHalfLength;
+            const float lw = 0.06f;
+
+            // コートの線：外周、中央の線、内野の前の線（点線）
+            FloorPlate("Line Center", g, new Vector3(0f, 0f, 0f), new Vector3(W * 2f, 0f, lw * 1.5f), mats["Line"]);
+            for (int s = -1; s <= 1; s += 2)
+            {
+                FloorPlate("Line End", g, new Vector3(0f, 0f, s * (L - 0.15f)), new Vector3(W * 2f - 0.3f, 0f, lw), mats["Line"]);
+                FloorPlate("Line Side", g, new Vector3(s * (W - 0.15f), 0f, 0f), new Vector3(lw, 0f, L * 2f - 0.3f), mats["Line"]);
+                float z = s * DBConst.BlockerAreaNearZ;
+                for (float x = -W + 0.6f; x < W - 0.4f; x += 0.8f)
+                    FloorPlate("Line Attack", g, new Vector3(x + 0.2f, 0f, z), new Vector3(0.4f, 0f, lw), mats["Line"]);
+            }
+            // センターサークル
+            const int seg = 32;
+            for (int k = 0; k < seg; k++)
+            {
+                float a0 = k * Mathf.PI * 2f / seg, a1 = (k + 1) * Mathf.PI * 2f / seg;
+                var p0 = new Vector3(Mathf.Sin(a0), 0f, Mathf.Cos(a0)) * 1.6f;
+                var p1 = new Vector3(Mathf.Sin(a1), 0f, Mathf.Cos(a1)) * 1.6f;
+                FloorPlate("Line Circle", g, (p0 + p1) * 0.5f, new Vector3(lw, 0f, (p1 - p0).magnitude + 0.01f), mats["Line"], DBUtil.YawOf(p1 - p0));
+            }
+
+            // 観客席（発射レーンの外。3 段）と観客
+            float standX0 = DBConst.OuterHalfWidth + 0.6f;
+            var rng = new System.Random(1127);
+            string[] crowd = { "Crowd1", "Crowd2", "Crowd3", "P1", "P2" };
+            for (int s = -1; s <= 1; s += 2)
+            {
+                for (int step = 0; step < 3; step++)
+                {
+                    float x = s * (standX0 + 0.5f + step * 1.0f);
+                    float h = 0.25f + step * 0.3f;
+                    Box("Stand", g, new Vector3(x, h * 0.5f, 0f), new Vector3(1.0f, h, L * 2f - 1f), mats["Stand"], false);
+                    for (float z = -L + 1f; z <= L - 1f; z += 0.7f)
+                    {
+                        if (rng.NextDouble() < 0.25) continue;
+                        float jz = (float)(rng.NextDouble() - 0.5) * 0.2f;
+                        var m = mats[crowd[rng.Next(crowd.Length)]];
+                        DBUtil.Primitive(PrimitiveType.Sphere, "Fan", g, new Vector3(x, h + 0.15f, z + jz), Quaternion.identity,
+                            new Vector3(0.3f, 0.3f, 0.3f), m, false);
+                    }
+                }
+            }
+            // 四隅の照明（柱と、光る頭）
+            for (int sx = -1; sx <= 1; sx += 2)
+                for (int sz = -1; sz <= 1; sz += 2)
+                {
+                    var c = new Vector3(sx * (standX0 + 3.6f), 0f, sz * (L - 0.5f));
+                    DBUtil.Primitive(PrimitiveType.Cylinder, "Light Pole", g, c + Vector3.up * 1.0f, Quaternion.identity,
+                        new Vector3(0.15f, 1.0f, 0.15f), mats["LightPole"], false);
+                    Box("Light Head", g, c + Vector3.up * 2.05f, new Vector3(0.9f, 0.12f, 0.5f), mats["LightLamp"], false, sx * sz * 30f);
+                }
         }
 
         /// <summary>
@@ -737,8 +905,8 @@ namespace PinballDodgeball.EditorTools
             return go.AddComponent<DBBall>();
         }
 
-        static DBGameManager SetupGame(DBBall ball, DBBlockerRow[] rows, DBServeLane[] lanes, DBFlipper[] flippers,
-            DBShootPost[] posts, DBDropTargetBank[] banks, DBCoaster[] coasters, Transform outfieldRoot)
+        static DBGameManager SetupGame(DBBall ball, DBBlockerRow[] rows, DBServeLane[] lanes,
+            DBDropTargetBank[] banks, DBCoaster[] coasters, Transform outfieldRoot)
         {
             var gm = Object.FindFirstObjectByType<DBGameManager>();
             if (gm == null)
@@ -755,8 +923,6 @@ namespace PinballDodgeball.EditorTools
             gm.ball = ball;
             gm.rows = rows;
             gm.lanes = lanes;
-            gm.mainFlippers = flippers;
-            gm.shootPosts = posts;
             gm.dropTargetBanks = banks;
             gm.coasters = coasters;
             gm.outfieldRoot = outfieldRoot;

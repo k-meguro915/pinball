@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace PinballDodgeball
 {
@@ -13,7 +13,7 @@ namespace PinballDodgeball
         // 台を横に広げた倍率（ステップ11：盤面の幅 12 → 18。選手の動ける範囲 BlockerAreaHalfX は広げない）
         public const float WidthScale = 1.5f;
         public const float PlayHalfWidth = 6f * WidthScale;      // 外壁の内面 X ±9
-        // 台を縦に広げた量（ステップ8：盤面とフリッパー・ガイドを、ゴール側へこれだけ伸ばす・下げる）
+        // 台を縦に広げた量（ステップ8。ゴール側の壁までの長さ）
         public const float ExtraLength = 1.5f;
         public const float PlayHalfLength = 12f + ExtraLength;    // ゴール側の壁の内面 Z ±13.5
         public const float WallThickness = 0.3f;
@@ -23,32 +23,48 @@ namespace PinballDodgeball
         public const float BallRadius = 0.25f;
         public const float BallY = 0.25f;
 
-        // フリッパー（付け根 (±1.77, ∓10.5)、長さ 1.4）
-        // 下げた先端の中心どうし 約 1.0、太さ（半径 0.18）を引いた球の通れる隙間 約 0.64（球の直径 0.5）
-        public const float FlipperPivotX = 1.77f;
-        public const float FlipperPivotZ = 9f + ExtraLength;
-        public const float FlipperLength = 1.4f;
-        public const float FlipperRadius = 0.18f;
-        public const float FlipperRestAngle = -25f;   // 内側の水平から、自分のゴール側へ 25°
-        public const float FlipperActiveAngle = 30f;  // 内側の水平から、相手側へ 30°
+        // ---- 背面の加速レーン（2026-11-27。図面：Docs/図面_ドッジボールの背面レーン.svg。どれも点対称） ----
+        // 半円の中心は (0, 自陣の向き × BackLaneCenterZ)。外側の半径 = 横の壁と奥の壁に接する、内側の半径との差がレーンの幅
+        public const float BackLaneCenterZ = PlayHalfLength - BackLaneOuterR;   // 4.5
+        public const float BackLaneOuterR = PlayHalfWidth;                      // 9.0
+        public const float BackLaneInnerR = BackLaneOuterR - 0.9f;              // 8.1（幅 0.9）
+        public const float BackLaneWallThickness = 0.15f;
+        public const float BackLaneExitZ = 2.6f;          // まっすぐな部分の終わり（出口。中央の線から）
+        public const float BackLaneGapHalf = 0.9f;        // 入口（内側の壁の、奥の真ん中のすき間）の幅の半分
+        public const float BackLaneSegmentDeg = 7.5f;     // 加速の帯・壁を分ける角度
+        public const float BackLaneExitAngle = 25f;       // 出口で内側へ向ける角度
+        public static float BackLaneMidR => (BackLaneOuterR + BackLaneInnerR) * 0.5f;
 
-        // フリッパーの隙間から落ちた判定：|Z| がこれより大きい盤面の中（|X| < PlayHalfWidth）
-        public const float DrainZ = FlipperPivotZ + 1.3f;
+        /// <summary>
+        /// 背面の加速レーンの真ん中の線の上の点。territory = どちらの陣地か、phi = 奥の真ん中から横への角度（-90〜90°。+ は +X 側）、r = 半径
+        /// </summary>
+        public static Vector3 BackLanePoint(int territory, float phiDeg, float r)
+        {
+            float zs = -Sign(territory);
+            float a = phiDeg * Mathf.Deg2Rad;
+            return new Vector3(r * Mathf.Sin(a), BallY, zs * (BackLaneCenterZ + r * Mathf.Cos(a)));
+        }
 
-        // シュートポスト（ガイドと外壁の角を埋める三角柱。壁沿いの面は、壁から内側へ下る斜面）
-        public const float ShootPostWallRise = 1.0f;   // 角から壁に沿って中央側へ
-        public const float ShootPostGuideRun = 1.4f;   // 角からガイドに沿ってフリッパー側へ
-        public const float ShootPostHeight = 0.5f;
+        /// <summary>背面の加速レーンで、出口へ向かう向き（phi の点で）</summary>
+        public static Vector3 BackLaneTangent(int territory, float phiDeg)
+        {
+            float zs = -Sign(territory);
+            float a = phiDeg * Mathf.Deg2Rad;
+            float side = phiDeg >= 0f ? 1f : -1f;
+            return new Vector3(side * Mathf.Cos(a), 0f, -zs * Mathf.Abs(Mathf.Sin(a))).normalized;
+        }
 
-        // ガイド（外壁 → フリッパーの付け根）
-        // 壁に付く高さを保つため、付け根からの落差を決めて、傾きは幅から計算する（幅 12 のとき 0.726、幅 18 のとき 約 0.425）
-        public const float GuideDrop = 3.07f;
-        public const float GuideThickness = 0.2f;
-        public static float GuideSlope => GuideDrop / (PlayHalfWidth - FlipperPivotX);
+        // 背面のバンパー（入口の左右に 2 つずつ）。レーンの半円の中心から見た角度（奥の真ん中から ±）と、内側の壁とのすき間で決める
+        // 2026-11-27：すき間 約 0.7 → 2.0（狭すぎたため。前の位置は (±2.4, 11.0)、(±4.8, 9.6)）
+        public static readonly float[] BackBumperAngles = { 20f, 43f };
+        public const float BackBumperWallGap = 2.0f;
 
-        // ガイドの加速レーン（ステップ18）：ガイドの上の帯。フリッパーの手前で終わる
-        public const float GuideBoosterWidth = 0.7f;       // ガイドの上の面から盤面側への幅
-        public const float GuideBoosterEndMargin = 1.2f;   // フリッパーの付け根の手前、この距離で終わる
+        /// <summary>背面のバンパーの中心。territory = どちらの陣地か、side = 画面の左 -1 / 右 +1、k = 何番目（0 = 入口に近い方）</summary>
+        public static Vector3 BackBumperPosition(int territory, int side, int k)
+        {
+            float r = BackLaneInnerR - BackLaneWallThickness - BumperRadius - BackBumperWallGap;
+            return BackLanePoint(territory, side * BackBumperAngles[k], r);
+        }
 
         // バンパー（中央の線の左右の壁にくっつけて 1 つずつ）
         public const float BumperRadius = 0.45f;
@@ -89,7 +105,7 @@ namespace PinballDodgeball
         public const float CoasterShotAngle = 31f;
         public static readonly Vector3[] CoasterPathP1 =
         {
-            new Vector3(-6.74f, BallY, 1.3f),   // 入口の始まり（中央側）
+            new Vector3(-6.0f, BallY, 0.2f),    // 入口の始まり（中央側）。2026-11-27：投げた球で届くよう、中立地帯まで延ばした（前は (-6.74, 1.3)）
             new Vector3(-7.34f, 0.45f, 2.3f),   // 入口の終わり（ここから上る）
             new Vector3(-7.45f, 0.6f, 2.65f),
             new Vector3(-7.4f, 0.7f, 2.95f),   // 輪の始まり（高さ 0.7）。ここから外側（壁・発射レーン側）へ回る
@@ -109,11 +125,11 @@ namespace PinballDodgeball
             new Vector3(-7.8f, 1.49f, 3.64f),
             new Vector3(-7.5f, 1.54f, 4.2f),
             new Vector3(-7.4f, 1.6f, 4.83f),   // 輪の終わり（高さ 1.6。行きのレールの上を越える）
-            new Vector3(-7.3f, 1.25f, 5.25f),
-            new Vector3(-7.2f, 0.65f, 5.6f),
-            new Vector3(-7.3f, BallY, 5.85f),   // 終点：射出装置（籠の中。相手の陣地のゴール側の壁ぎわ）
+            new Vector3(-7.2f, 1.25f, 5.3f),
+            new Vector3(-6.8f, 0.65f, 5.9f),
+            new Vector3(-6.4f, BallY, 6.5f),    // 終点：射出装置（籠の中）。2026-11-27：(-7.3, 5.85) → 内側へ（背面の加速レーンの内側の壁に重なるため）
         };
-        public const float CoasterEntranceWidth = 1.4f;
+        public const float CoasterEntranceWidth = 2.2f; // 2026-11-27：1.4 → 2.2（投げた球で入れやすく）
         // 射出装置の籠（BaseFix06）：格子の半球。口（開いている側）は相手の内野の真ん中を向く
         public const float CoasterCageRadius = 0.85f;
         public const float CoasterCageMouthHalfAngle = 55f;  // 口の開き（片側の角度）
@@ -150,7 +166,7 @@ namespace PinballDodgeball
         public const float LaneInnerX = PlayHalfWidth + WallThickness;   // 外壁の外側の面
         public const float LaneOuterX = LaneInnerX + 0.8f;               // レーンの幅 0.8
         public const float ServeOwnExitZ = 3.6f;     // 自陣側の出入り口
-        public const float ServeOppExitZ = 2.64f;    // 相手陣地側の出入り口
+        public const float ServeOppExitZ = 3.2f;     // 相手陣地側の出入り口（2026-11-27：2.64 → 3.2。背面の加速レーンのまっすぐな部分に開く）
         public const float DoorWidth = 1.0f;
         public const float PlungerZ = PlayHalfLength - BallRadius - 0.05f;
 
@@ -158,33 +174,6 @@ namespace PinballDodgeball
         public static int Opponent(int player) => 1 - player;
         public static float LaneCenterX(int player) => Sign(player) * (LaneInnerX + LaneOuterX) * 0.5f;
         public static float OuterHalfWidth => LaneOuterX + WallThickness;
-        /// <summary>ガイドが外壁に付く位置の Z（の大きさ）</summary>
-        public static float GuideWallZ => FlipperPivotZ - GuideDrop;
-
-        /// <summary>
-        /// シュートポスト（三角柱）の 3 つの角（XZ）。territory = どちらの陣地の角か（その陣地の選手がねらわれる）、cornerSide = 画面の左 -1 / 右 +1。
-        /// corner = 外壁の内面とガイドの上の面が交わる点、wallTop = そこから壁に沿って中央側へ、guideEnd = ガイドの上の面に沿ってフリッパー側へ。
-        /// 球が当たる面は wallTop → guideEnd（壁から内側へ下る斜面なので、球はガイドへ流れる）
-        /// </summary>
-        public static void ShootPostTriangle(int territory, int cornerSide, out Vector3 corner, out Vector3 wallTop, out Vector3 guideEnd)
-        {
-            float zs = -Sign(territory);
-            Vector2 a = new Vector2(cornerSide * PlayHalfWidth, zs * GuideWallZ);
-            Vector2 b = new Vector2(cornerSide * FlipperPivotX, zs * FlipperPivotZ);
-            Vector2 u = (b - a).normalized;
-            Vector2 n = new Vector2(-u.y, u.x);
-            if (n.y * -zs < 0f) n = -n; // 盤面の中央側へ向ける
-            // ガイドの上の面（中心線から厚みの半分だけ盤面側）と、壁の内面（X = ±6）の交点
-            Vector2 a2 = a + n * (GuideThickness * 0.5f);
-            float t = (cornerSide * PlayHalfWidth - a2.x) / u.x;
-            Vector2 c = a2 + u * t;
-            Vector2 w = c + new Vector2(0f, -zs * ShootPostWallRise);
-            Vector2 g = c + u * ShootPostGuideRun;
-            corner = new Vector3(c.x, 0f, c.y);
-            wallTop = new Vector3(w.x, 0f, w.y);
-            guideEnd = new Vector3(g.x, 0f, g.y);
-        }
-
         public static string PlayerName(int player, bool cpu) => cpu ? "CPU" : (player == 0 ? "P1" : "P2");
     }
 }

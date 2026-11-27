@@ -1,11 +1,11 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace PinballDodgeball
 {
     /// <summary>
     /// 球。台は水平な XZ 平面で、傾きは加速度で表す（中央が山。今いる側のゴールへ加速）。
     /// LastHitter：最後に打ったプレイヤー（-1 = 誰の球でもない）。
-    /// LastOutfield：最後に投げたのが外野ブロッカーならその外野（間にフリッパーや選手が触れると消える）。
+    /// LastOutfield：最後に投げたのが外野ブロッカーならその外野（間に選手が触れると消える）。
     /// 球の色：持ち主の色（誰の球でもないときは neutralColor）。外野が投げた球は少し明るくする。
     /// パワーショット（ジャストキャッチから投げた速い球）：軌跡が出る。ほかのプレイヤーの球になる・止まる・遅くなると終わる。
     /// </summary>
@@ -33,7 +33,7 @@ namespace PinballDodgeball
 
         /// <summary>
         /// 最後に打ったプレイヤー（-1 = 誰の球でもない）。別のプレイヤーに変わるとパワーショットは終わる。
-        /// 値を入れるたびに FromFlipper・FromLauncher・FromServe は消える（フリッパーは入れたあとに FromFlipper を立て直す）
+        /// 値を入れるたびに FromThrow・FromLauncher・FromServe は消える（選手が投げるときは、入れたあとに FromThrow を立て直す）
         /// </summary>
         public int LastHitter
         {
@@ -42,16 +42,16 @@ namespace PinballDodgeball
             {
                 if (value != lastHitter && IsPowerShot) EndPowerShot();
                 lastHitter = value;
-                FromFlipper = false;
+                FromThrow = false;
                 FromLauncher = false;
                 FromServe = false;
             }
         }
-        /// <summary>最後に触れたのが持ち主の自陣のフリッパーか（この球は味方の選手をすり抜ける）。バンパー・壁・スピナーでは消えない</summary>
-        public bool FromFlipper { get; set; }
+        /// <summary>持ち主の内野の選手が投げた球か（この球は味方の選手をすり抜け、持ち主のコースターに乗る）。バンパー・壁・スピナーでは消えない</summary>
+        public bool FromThrow { get; set; }
         /// <summary>コースターの射出装置が撃った球か（持ち主の外野をすり抜ける）。LastHitter に値が入ると消える</summary>
         public bool FromLauncher { get; set; }
-        /// <summary>サーブの球か（外野をすり抜ける）。LastHitter に値が入ると消える（フリッパー・選手に触れるまで）</summary>
+        /// <summary>サーブの球か（外野をすり抜ける）。LastHitter に値が入ると消える（選手に触れるまで）</summary>
         public bool FromServe { get; set; }
         int lastHitter = -1;
         public bool IsPowerShot { get; private set; }

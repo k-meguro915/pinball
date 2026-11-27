@@ -1,12 +1,12 @@
-using System;
+﻿using System;
 using UnityEngine;
 
 namespace PinballDodgeball
 {
     /// <summary>
     /// ジェットコースターのようなレーン。各プレイヤーに 1 本。ステップ19から、レーンは相手の陣地にある（入口も相手の陣地）。
-    /// P1 は画面の左の帯、P2 は点対称で右の帯。path[0] → path[1] は、自分の右のフリッパーで左へ寄せて打った球（約31°）の線の上に、同じ向きで置いた斜めの通路。
-    /// 持ち主が自分のフリッパーで打った球が、その通路の向きに入口を通ると乗る（選手が投げた球では乗らない）。
+    /// P1 は画面の左の帯、P2 は点対称で右の帯。path[0] → path[1] は、相手の陣地の入口の斜めの通路。
+    /// 持ち主の内野の選手が投げた球（Ball.FromThrow）が、その通路の向きに入口を通ると乗る（2026-11-27。前はフリッパーで打った球）。
     /// 乗っている間は球を path に沿って運ぶ（高さも変わる。下るほど速い）。
     /// 終点（相手の陣地のゴール側の壁ぎわ）の射出装置で 0.7〜1 秒（ランダム）ためてから、相手の内野の選手へ横・後ろから撃ち出す。
     /// 撃った球は持ち主の外野をすり抜ける（Ball.FromLauncher）。
@@ -44,8 +44,8 @@ namespace PinballDodgeball
         public float minEnterSpeed = 3f;
         [Tooltip("持ち主の球だけ乗る")]
         public bool ownerOnly = true;
-        [Tooltip("自分のフリッパーで打った球（Ball.FromFlipper）だけ乗る。選手が投げた球・選手に当たった球は乗らない")]
-        public bool flipperShotsOnly = true;
+        [Tooltip("持ち主の内野の選手が投げた球（Ball.FromThrow）だけ乗る。外野が投げた球・選手に当たった球は乗らない")]
+        public bool throwsOnly = true;
         [Tooltip("撃ったあと、続けて乗らないまでの時間")]
         public float cooldown = 0.6f;
 
@@ -110,7 +110,7 @@ namespace PinballDodgeball
             var gm = DBGameManager.Instance;
             if (ball == null || ball.IsHeld || gm == null || gm.CurrentState != DBGameManager.State.Rally) return;
             if (ownerOnly && ball.LastHitter != owner) return;
-            if (flipperShotsOnly && !ball.FromFlipper) return;
+            if (throwsOnly && !ball.FromThrow) return;
             if (path == null || path.Length < 2) return;
             Vector3 ramp = DBUtil.Flat(path[1] - path[0]);
             if (Vector3.Dot(ball.Velocity, ramp.normalized) < minEnterSpeed) return;

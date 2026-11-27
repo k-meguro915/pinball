@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace PinballFrontend
 {
@@ -21,9 +21,6 @@ namespace PinballFrontend
 
         // ---- ドッジボール ----
         public FEControl outfieldControl = FEControl.Auto;
-        public FEControl shootControl = FEControl.Auto;
-        public bool flipperAutoP1;
-        public bool flipperAutoP2;
 
         public bool IsVsCpu => playMode == FEPlayMode.VsCpu;
 
@@ -57,7 +54,6 @@ namespace PinballFrontend
             if (!Enum.IsDefined(typeof(FEPlayMode), playMode)) playMode = FEPlayMode.VsCpu;
             if (!Enum.IsDefined(typeof(FECpuLevel), cpuLevel)) cpuLevel = FECpuLevel.Normal;
             if (!Enum.IsDefined(typeof(FEControl), outfieldControl)) outfieldControl = FEControl.Auto;
-            if (!Enum.IsDefined(typeof(FEControl), shootControl)) shootControl = FEControl.Auto;
             if (Array.IndexOf(TargetScoreOptions, targetScore) < 0) targetScore = 5;
         }
 
@@ -66,7 +62,7 @@ namespace PinballFrontend
             string common = $"{rule} / {playMode}" + (IsVsCpu ? $" / CPU {cpuLevel}" : "");
             return rule == FERule.Versus
                 ? $"{common} / first to {targetScore}"
-                : $"{common} / outfield {outfieldControl} / shoot {shootControl} / flipper auto P1={flipperAutoP1} P2={flipperAutoP2}";
+                : $"{common} / outfield {outfieldControl}";
         }
     }
 }

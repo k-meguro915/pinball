@@ -1,4 +1,4 @@
-using PinballDodgeball;
+﻿using PinballDodgeball;
 using UnityEngine;
 
 namespace PinballFrontend
@@ -90,8 +90,6 @@ namespace PinballFrontend
         {
             switch (token)
             {
-                case "L": return DBInput.Label(player, "L");
-                case "R": return DBInput.Label(player, "R");
                 case "Serve":
                 case "Catch": return DBInput.Label(player, "B");
                 case "Route": return DBInput.Label(player, "Y");
@@ -102,8 +100,6 @@ namespace PinballFrontend
 
         public (string action, string token)[] ControlRows { get; } =
         {
-            ("左フリッパー", "L"),
-            ("右フリッパー", "R"),
             ("選手移動", "Move"),
             ("サーブ", "Serve"),
             ("ルート切替", "Route"),

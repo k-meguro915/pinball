@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 
 namespace PinballDodgeball
@@ -9,7 +9,7 @@ namespace PinballDodgeball
     /// キャッチの構えは B を押し始めてから maxCatchHoldTime（3 秒）まで。過ぎたら押し直す。
     /// ジャストキャッチ：B を押し始めてから justCatchFrames（60fps 換算）以内につかむと、次に投げる球がパワーショット（速い球）になる。
     /// 跳ね返し・背面ガード・一方通行はない。味方の投げた球ではアウトにならない（当たって跳ね返るだけ）。
-    /// ただし自分のフリッパーで打った球（Ball.FromFlipper）は、味方の選手をすり抜ける。
+    /// ただし味方の選手が投げた球（Ball.FromThrow）は、味方の選手をすり抜ける。
     /// 動ける範囲は、残っている選手だけで決める（いない選手の分ははみ出してよい）。
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
@@ -27,8 +27,8 @@ namespace PinballDodgeball
 
         [Tooltip("外野から戻った選手が範囲の外にはみ出したとき、範囲へ戻る速さ")]
         public float reenterSpeed = 6f;
-        [Tooltip("自分のフリッパーで打った球は、味方の選手をすり抜ける")]
-        public bool passOwnFlipperShots = true;
+        [Tooltip("味方の選手が投げた球は、味方の選手をすり抜ける")]
+        public bool passOwnThrows = true;
 
         [Header("当たり（HP 1）")]
         [Tooltip("相手の球がこの速さ以上で当たるとアウト")]
@@ -229,8 +229,8 @@ namespace PinballDodgeball
 
                 if (!ball.IsHeld && t >= graceUntil[i] && IsCatchArmed && dist <= catchRange) Catch(i, pos);
 
-                // すり抜け：発射直後・復活直後、自分のフリッパーで打った球（重なっている間は続ける）
-                bool ownFlipper = passOwnFlipperShots && !ball.IsHeld && ball.FromFlipper && ball.LastHitter == owner;
+                // すり抜け：発射直後・復活直後、味方が投げた球（重なっている間は続ける）
+                bool ownFlipper = passOwnThrows && !ball.IsHeld && ball.FromThrow && ball.LastHitter == owner;
                 bool overlap = dist < 0.02f;
                 SetIgnore(i, t < graceUntil[i] || ownFlipper || (ignoring[i] && overlap));
             }
@@ -316,6 +316,8 @@ namespace PinballDodgeball
             justCaught = false;
             ball.LastHitter = owner;
             ball.LastOutfield = null;
+            ball.FromThrow = true;
+            if (gm.CurrentState == DBGameManager.State.Rally && gm.ConsumePowerReady(owner)) power = true; // ドロップターゲットのごほうび
             if (gm.CurrentState == DBGameManager.State.Rally)
             {
                 ball.Release(dir * (power ? powerShotSpeed : launchSpeed));

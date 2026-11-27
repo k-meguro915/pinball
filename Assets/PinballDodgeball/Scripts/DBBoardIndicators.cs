@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace PinballDodgeball
@@ -91,14 +91,6 @@ namespace PinballDodgeball
             {
                 var of = gm.HoldingOutfield();
                 if (of != null) { owner = of.owner; dir = of.AimDir; remain = of.HoldRemaining01; }
-            }
-            if (owner < 0)
-            {
-                foreach (var sp in gm.shootPosts)
-                {
-                    if (sp == null || !sp.IsLoaded) continue;
-                    owner = sp.owner; dir = sp.AimDir; remain = sp.LoadRemaining01; power = true;
-                }
             }
             if (owner < 0 && gm.coasters != null)
             {

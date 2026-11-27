@@ -1,4 +1,4 @@
-using PinballDodgeball;
+﻿using PinballDodgeball;
 
 namespace PinballFrontend
 {
@@ -23,11 +23,6 @@ namespace PinballFrontend
             gm.cpuLevel = ToCpuLevel(s.cpuLevel);
             gm.outfieldControl = s.outfieldControl == FEControl.Auto
                 ? DBGameManager.OutfieldControl.Auto : DBGameManager.OutfieldControl.Buttons;
-            gm.shootControl = s.shootControl == FEControl.Auto
-                ? DBGameManager.ShootControl.Auto : DBGameManager.ShootControl.Buttons;
-            if (gm.flipperAuto == null || gm.flipperAuto.Length < 2) gm.flipperAuto = new bool[2];
-            gm.flipperAuto[0] = s.flipperAutoP1;
-            gm.flipperAuto[1] = s.flipperAutoP2; // CPU 側は本編がいつも自動にする
             gm.skipTitle = true;                 // 本編のタイトルを出さずに始める
             return true;
         }

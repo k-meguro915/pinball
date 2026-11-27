@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -12,7 +12,9 @@ namespace PinballDodgeball
     /// ・外野が最後に投げた球で相手をアウトにすると、その外野は元の選手に戻る
     /// ・サーブは試合開始のときだけ。ダブルフォルトはサーブ権が相手へ移る
     /// ・内野のジャストキャッチ（B を押し始めてから 3F 以内につかむ）→ 投げる球がパワーショット（速い球。貫通はしない）
-    /// ・フリッパーの真ん中の隙間から球が落ちると、その陣地の角にある相手のシュートポストに球がセットされ、斜め後ろから撃たれる
+    /// ・フリッパーはない（2026-11-27）。コートの奥は壁
+    /// ・相手陣地のドロップターゲットを 3 つ倒すと、次に投げる球がパワーショットになる（2026-11-27：ターゲットは一度台から外した）
+    /// ・背面の加速レーン（2026-11-27）：奥へ転がった球を、半円のレーンで中央の線の手前まで運ぶ（出た球は誰の球でもない）
     /// </summary>
     [DefaultExecutionOrder(-100)]
     public class DBGameManager : MonoBehaviour
@@ -20,7 +22,6 @@ namespace PinballDodgeball
         public enum Mode { VsCpu, Versus }
         public enum CpuLevel { Easy, Normal, Hard }
         public enum OutfieldControl { Auto, Buttons }
-        public enum ShootControl { Auto, Buttons }
         public enum State { Title, Serve, Rally, Over }
 
         public static DBGameManager Instance { get; private set; }
@@ -34,24 +35,9 @@ namespace PinballDodgeball
         public bool skipTitle;
 
         [Header("球の速さ（まとめて）")]
-        [Tooltip("試合の始まりに、球にかかわる速さをまとめてこの倍率にする（投げる・撃つ速さ、パワーショット、フリッパーの振り、バンパー、" +
-                 "スピナー、射出装置、ガイドの加速レーン、台の傾き、速さの上限、サーブの強さ）。各部品のインスペクターの値は 1 倍のときの値")]
+        [Tooltip("試合の始まりに、球にかかわる速さをまとめてこの倍率にする（投げる・撃つ速さ、パワーショット、バンパー、背面の加速レーン、" +
+                 "スピナー、射出装置、台の傾き、速さの上限、サーブの強さ）。各部品のインスペクターの値は 1 倍のときの値")]
         public float ballSpeedScale = 1.25f;
-
-        [Header("フリッパー")]
-        [Tooltip("プレイヤーごとにフリッパーを自動で振るか（[P1, P2]）。CPU はいつも自動")]
-        public bool[] flipperAuto = new bool[2];
-        [Tooltip("自動のフリッパー：球が来てから振るまでの遅れ")]
-        public float autoFlipperReaction = 0.03f;
-        [Tooltip("自動のフリッパー：フリッパーの表面からこの距離まで球が来たら振る")]
-        public float autoFlipperReach = 0.55f;
-
-        [Header("シュートポスト")]
-        [Tooltip("全自動 = セットから一定時間で、相手のいちばん近い選手をねらって撃つ／ボタン = 持ち主が B で撃つ（押さなければ自動）、向きはスティックの左右")]
-        public ShootControl shootControl = ShootControl.Auto;
-        public float shootAutoDelay = 1.5f;
-        public float shootButtonAutoTime = 3f;
-        public float shootSpeed = 26f;
 
         [Header("外野ブロッカー")]
         [Tooltip("中心の X（の大きさ）。ステップ19：壁ぎわ → 選手の範囲のすぐ外")]
@@ -89,10 +75,6 @@ namespace PinballDodgeball
         public DBBall ball;
         public DBBlockerRow[] rows = new DBBlockerRow[2];
         public DBServeLane[] lanes = new DBServeLane[2];
-        [Tooltip("[P1 左, P1 右, P2 左, P2 右]（左右は画面の向き）")]
-        public DBFlipper[] mainFlippers = new DBFlipper[4];
-        [Tooltip("4 つ（各陣地の左右の角）。持ち主はその陣地の相手")]
-        public DBShootPost[] shootPosts = new DBShootPost[0];
         [Tooltip("4 列（各陣地の左右の壁ぎわ）")]
         public DBDropTargetBank[] dropTargetBanks = new DBDropTargetBank[0];
         [Tooltip("2 本（各陣地に 1 本）")]
@@ -112,6 +94,17 @@ namespace PinballDodgeball
         public int Faults { get; private set; }
         public int Winner { get; private set; } = -1;
         public int ServeToken { get; private set; }
+
+        /// <summary>ドロップターゲットを 3 つ倒して、次に投げる球がパワーショットになるか（[P1, P2]）</summary>
+        readonly bool[] powerReady = new bool[2];
+        public bool PowerReady(int p) => p >= 0 && p < 2 && powerReady[p];
+        /// <summary>選手が投げるときに呼ぶ。パワーショットの権利があれば使って true</summary>
+        public bool ConsumePowerReady(int p)
+        {
+            if (!PowerReady(p)) return false;
+            powerReady[p] = false;
+            return true;
+        }
 
         public event Action<int> MatchOver;
 
@@ -189,8 +182,6 @@ namespace PinballDodgeball
                 row.JustCaught += (r, i) => Post("ジャストキャッチ！", PlayerColor(r.owner), r.blockers[i].position);
                 row.PowerShotThrown += (r, i) => Post("パワーショット！", PlayerColor(r.owner), r.blockers[i].position);
             }
-            foreach (var sp in shootPosts)
-                if (sp != null) sp.Fired += s => Post("シュート！", PlayerColor(s.owner), s.transform.position);
             foreach (var bank in dropTargetBanks)
             {
                 if (bank == null) continue;
@@ -215,18 +206,10 @@ namespace PinballDodgeball
                 if (rows[r.owner] == null) rows[r.owner] = r;
             foreach (var l in FindObjectsByType<DBServeLane>(FindObjectsSortMode.None))
                 if (lanes[l.owner] == null) lanes[l.owner] = l;
-            foreach (var f in FindObjectsByType<DBFlipper>(FindObjectsSortMode.None))
-            {
-                int idx = f.owner * 2 + (f.screenSide > 0 ? 1 : 0);
-                if (mainFlippers[idx] == null) mainFlippers[idx] = f;
-            }
-            if (shootPosts == null || shootPosts.Length == 0)
-                shootPosts = FindObjectsByType<DBShootPost>(FindObjectsSortMode.None);
             if (dropTargetBanks == null || dropTargetBanks.Length == 0)
                 dropTargetBanks = FindObjectsByType<DBDropTargetBank>(FindObjectsSortMode.None);
             if (coasters == null || coasters.Length == 0)
                 coasters = FindObjectsByType<DBCoaster>(FindObjectsSortMode.None);
-            if (flipperAuto == null || flipperAuto.Length < 2) flipperAuto = new bool[2];
         }
 
         void ApplyPhysicsMaterials()
@@ -235,39 +218,8 @@ namespace PinballDodgeball
             {
                 if (c.isTrigger) continue;
                 if (c.GetComponentInParent<DBBall>() != null) DBUtil.ApplyPhysics(c, 0.35f, 0f);
-                else if (c.GetComponentInParent<DBFlipper>() != null) DBUtil.ApplyPhysics(c, 0.2f, 0f);
                 else if (c.GetComponentInParent<DBBumper>() != null) DBUtil.ApplyPhysics(c, 0.6f, 0f);
                 else DBUtil.ApplyPhysics(c, 0.45f, 0f);
-            }
-        }
-
-        void SetupMainFlippers()
-        {
-            for (int idx = 0; idx < mainFlippers.Length; idx++)
-            {
-                var f = mainFlippers[idx];
-                if (f == null) continue;
-                int pp = f.owner;
-                bool left = f.screenSide < 0;
-                if (IsCpu(pp))
-                {
-                    cpu.ConfigureFlipper(f, (int)cpuLevel);
-                }
-                else if (flipperAuto[pp])
-                {
-                    f.autoSwing = true;
-                    f.pressed = null;
-                    f.autoReaction = autoFlipperReaction;
-                    f.autoMissChance = 0f;
-                    f.autoReach = autoFlipperReach;
-                }
-                else
-                {
-                    f.autoSwing = false;
-                    if (left) f.pressed = () => inputs[pp].flipL;
-                    else f.pressed = () => inputs[pp].flipR;
-                }
-                f.ResetPose();
             }
         }
 
@@ -280,26 +232,11 @@ namespace PinballDodgeball
             foreach (var co in coasters) if (co != null) co.Cancel();
         }
 
-        /// <summary>ドロップターゲットを 3 つ倒した：同じ側の角にある、攻める側のシュートポストに球をセット</summary>
+        /// <summary>ドロップターゲットを 3 つ倒した：攻める側の次の球がパワーショットになる</summary>
         void OnTargetsCompleted(DBDropTargetBank bank)
         {
-            DBShootPost post = null;
-            foreach (var sp in shootPosts)
-                if (sp != null && sp.territory == bank.territory && sp.cornerSide == bank.side && sp.owner == bank.Attacker) post = sp;
-            Post("ターゲット クリア！", PlayerColor(bank.Attacker), bank.transform.position);
-            if (post == null || post.IsLoaded || ball.IsHeld || !IsPlaying) return;
-            LoadPost(post);
-        }
-
-        void LoadPost(DBShootPost post)
-        {
-            if (CurrentState == State.Serve)
-            {
-                CurrentState = State.Rally;
-                UpdateDoors();
-            }
-            post.Load(ball);
-            Post("シュートポスト セット", PlayerColor(post.owner), post.transform.position);
+            Post("ターゲット クリア！ 次の球はパワー", PlayerColor(bank.Attacker), bank.transform.position);
+            if (IsPlaying) powerReady[bank.Attacker] = true;
         }
 
         float SpeedScale => Mathf.Max(0.1f, ballSpeedScale);
@@ -328,22 +265,16 @@ namespace PinballDodgeball
                 row.launchSpeed *= k;
                 row.powerShotSpeed *= k;
             }
-            foreach (var f in mainFlippers)
-            {
-                if (f == null) continue;
-                f.swingSpeed *= k;
-                f.returnSpeed *= k;
-            }
             foreach (var b in FindObjectsByType<DBBumper>(FindObjectsSortMode.None)) b.kickSpeed *= k;
             foreach (var s in FindObjectsByType<DBSpinner>(FindObjectsSortMode.None))
             {
                 s.minBoostSpeed *= k;
                 s.maxBoostSpeed *= k;
             }
-            foreach (var gb in FindObjectsByType<DBGuideBooster>(FindObjectsSortMode.None))
+            foreach (var bp in FindObjectsByType<DBBoostPad>(FindObjectsSortMode.None))
             {
-                gb.acceleration *= k;
-                gb.maxAlongSpeed *= k;
+                bp.acceleration *= k;
+                bp.maxAlongSpeed *= k;
             }
             foreach (var co in coasters)
             {
@@ -354,28 +285,15 @@ namespace PinballDodgeball
             }
             minPower *= k;
             maxPower *= k;
-            // 外野・シュートポストの速さは、作るとき・試合の始まりに k を掛けて入れる
-        }
-
-        void SetupShootPosts()
-        {
-            foreach (var sp in shootPosts)
-            {
-                if (sp == null) continue;
-                sp.Unload();
-                sp.autoFire = shootControl == ShootControl.Auto || IsCpu(sp.owner);
-                sp.autoFireDelay = shootAutoDelay;
-                sp.buttonAutoFireTime = shootButtonAutoTime;
-                sp.shotSpeed = shootSpeed * SpeedScale;
-            }
+            // 外野の速さは、作るときに k を掛けて入れる
         }
 
         public void GoTitle()
         {
             StopAllCoroutines();
             ClearOutfields();
-            SetupShootPosts();
             ResetDropTargets();
+            ResetPowerReady();
             foreach (var row in rows) if (row != null) row.ResetAll();
             foreach (var l in lanes) if (l != null) l.SetDoors(false, false);
             if (ball != null) ball.Hold(Vector3.zero);
@@ -392,9 +310,8 @@ namespace PinballDodgeball
             Winner = -1;
             messages.Clear();
             foreach (var row in rows) if (row != null) row.ResetAll();
-            SetupMainFlippers();
-            SetupShootPosts();
             ResetDropTargets();
+            ResetPowerReady();
             cpu.ResetState();
             BeginServe(nextStarter);
             nextStarter = 1 - nextStarter;
@@ -451,11 +368,8 @@ namespace PinballDodgeball
                 DBInputState h = IsCpu(p) ? cpu.Tick(this, p) : DBInput.ReadHeld(p);
                 if (p == 1 && !IsCpu(p) && SplitActive)
                 {
-                    // 画面分けでは P2 の画面が 180 度回っている。P2 の画面の向きで動くよう、スティックを逆に、左右のフリッパーを入れ替える
+                    // 画面分けでは P2 の画面が 180 度回っている。P2 の画面の向きで動くよう、スティックを逆にする
                     h.move = -h.move;
-                    bool l = h.flipL;
-                    h.flipL = h.flipR;
-                    h.flipR = l;
                 }
                 h.bDown = h.b && !prevB[p];
                 h.bUp = !h.b && prevB[p];
@@ -502,13 +416,12 @@ namespace PinballDodgeball
             ball.Release(new Vector3(0f, 0f, DBConst.Sign(Server) * CurrentPower));
             ball.LastHitter = Server;
             ball.LastOutfield = null;
-            ball.FromServe = true; // サーブの球は外野をすり抜ける（フリッパー・選手に触れるまで）
+            ball.FromServe = true; // サーブの球は外野をすり抜ける（選手に触れるまで）
         }
 
         void FixedUpdate()
         {
             if (ball == null) return;
-            if (IsPlaying && !ball.IsHeld && CheckDrain()) return;
             if (CurrentState != State.Serve || !ServeLaunched) return;
             var lane = lanes[Server];
             Vector3 bp = ball.Position;
@@ -537,33 +450,9 @@ namespace PinballDodgeball
             }
         }
 
-        /// <summary>フリッパーの真ん中の隙間から落ちたら、その陣地の角にある相手のシュートポストにセットする</summary>
-        bool CheckDrain()
+        void ResetPowerReady()
         {
-            Vector3 bp = ball.Position;
-            if (Mathf.Abs(bp.x) >= DBConst.PlayHalfWidth || Mathf.Abs(bp.z) <= DBConst.DrainZ) return false;
-            int victim = bp.z < 0f ? 0 : 1;
-
-            DBShootPost pick = null;
-            int found = 0;
-            foreach (var sp in shootPosts)
-            {
-                if (sp == null || sp.territory != victim || sp.IsLoaded) continue;
-                found++;
-                if (UnityEngine.Random.Range(0, found) == 0) pick = sp; // 当てはまるものから 1 つをランダムに
-            }
-            if (pick == null) return false;
-
-            Post(PlayerName(victim) + " のフリッパーの間から落ちた！", Color.white);
-            LoadPost(pick);
-            return true;
-        }
-
-        /// <summary>持ち主のシュートポストのどれかに球がセットされているか</summary>
-        public DBShootPost LoadedShootPost(int owner)
-        {
-            foreach (var sp in shootPosts) if (sp != null && sp.owner == owner && sp.IsLoaded) return sp;
-            return null;
+            powerReady[0] = powerReady[1] = false;
         }
 
         void Redirect(DBServeLane lane, float exitZ, float speed)
