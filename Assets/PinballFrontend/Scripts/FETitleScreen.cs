@@ -1,4 +1,4 @@
-using TMPro;
+﻿using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -6,7 +6,7 @@ using UnityEngine.UI;
 namespace PinballFrontend
 {
     /// <summary>
-    /// タイトル画面（FE_Title）。「スタート」でモード選択へ、「終了」でアプリを終える。
+    /// タイトル画面（FE_Title）。「スタート」でモード選択へ、「せってい」で設定の画面（FESettingsPanel）、「終了」でアプリを終える。
     /// 画面は Start() でコードから組み立てる。
     /// </summary>
     public class FETitleScreen : MonoBehaviour
@@ -16,7 +16,9 @@ namespace PinballFrontend
         public TMP_FontAsset font;
 
         EventSystem es;
-        Button startButton;
+        Button startButton, settingsButton;
+        RectTransform root;
+        FESettingsPanel settingsPanel;
         TextMeshProUGUI hint;
         bool hintForPad;
 
@@ -24,7 +26,7 @@ namespace PinballFrontend
         {
             Time.timeScale = 1f;
             es = FEUI.EnsureEventSystem();
-            var root = Build();
+            root = Build();
             es.SetSelectedGameObject(startButton.gameObject);
             StartCoroutine(FEUI.FadeIn(root.GetComponent<CanvasGroup>(), 0.35f));
         }
@@ -57,6 +59,7 @@ namespace PinballFrontend
             // ---- メニュー ----
             var col = FEUI.CreateColumn(root, "Menu", 520f, 18f, new Vector2(0.5f, 0.42f), new Vector2(0.5f, 1f));
             startButton = FEUI.CreateButton(col, "Start", "スタート", font, 88f, OnStart);
+            settingsButton = FEUI.CreateButton(col, "Settings", "せってい", font, 72f, OnSettings);
             FEUI.CreateButton(col, "Quit", "終了", font, 72f, FEUI.Quit);
 
             // ---- 下の帯：操作の案内と版 ----
@@ -96,8 +99,20 @@ namespace PinballFrontend
 
         void Update()
         {
+            if (settingsPanel != null) return;
             if (startButton != null) FEUI.KeepSelection(es, startButton.gameObject);
             if (hint != null) UpdateHint(false);
+        }
+
+        void OnSettings()
+        {
+            root.gameObject.SetActive(false);
+            settingsPanel = FESettingsPanel.Open(font, () =>
+            {
+                settingsPanel = null;
+                root.gameObject.SetActive(true);
+                es.SetSelectedGameObject(settingsButton.gameObject);
+            });
         }
 
         void OnStart()

@@ -141,6 +141,20 @@ namespace PinballDodgeball
 
         public DBInputState GetInput(int p) => inputs[p];
         public bool IsCpu(int p) => mode == Mode.VsCpu && p == 1;
+
+        /// <summary>
+        /// 1 VS 1 の画面分け（2026-11-27）をしているか。左半分 = P1、右半分 = P2 の画面（180 度回す）。
+        /// 分けてよいかは Pinball.SplitScreen.Allowed（FE のあそびかたでは分けない）
+        /// </summary>
+        public static bool SplitActive
+        {
+            get
+            {
+                var g = Instance;
+                return Pinball.SplitScreen.Allowed && Application.isPlaying && g != null &&
+                       g.mode == Mode.Versus && g.CurrentState != State.Title;
+            }
+        }
         public string PlayerName(int p) => DBConst.PlayerName(p, IsCpu(p));
         public Color PlayerColor(int p) => playerColors != null && p < playerColors.Length ? playerColors[p] : Color.white;
 
@@ -435,6 +449,14 @@ namespace PinballDodgeball
             for (int p = 0; p < 2; p++)
             {
                 DBInputState h = IsCpu(p) ? cpu.Tick(this, p) : DBInput.ReadHeld(p);
+                if (p == 1 && !IsCpu(p) && SplitActive)
+                {
+                    // 画面分けでは P2 の画面が 180 度回っている。P2 の画面の向きで動くよう、スティックを逆に、左右のフリッパーを入れ替える
+                    h.move = -h.move;
+                    bool l = h.flipL;
+                    h.flipL = h.flipR;
+                    h.flipR = l;
+                }
                 h.bDown = h.b && !prevB[p];
                 h.bUp = !h.b && prevB[p];
                 h.yDown = h.y && !prevY[p];

@@ -31,6 +31,9 @@ namespace PinballFrontend
             matchScenePath = scenePath;
             gameWidth = width;
 
+            // 1 VS 1 でも画面を左右に分けない（台は左に寄せて 1 画面で映す。本編の Pinball.SplitScreen）
+            Pinball.SplitScreen.Allowed = false;
+
             if (!rule.Setup(settings))
                 Debug.LogError("[PinballFrontend] あそびかたの準備ができませんでした（本編の管理役が見つかりません）");
 
@@ -94,6 +97,7 @@ namespace PinballFrontend
 
         void OnDestroy()
         {
+            Pinball.SplitScreen.Allowed = true;
             rule?.Dispose();
             adapter?.Dispose();
             rule = null;

@@ -94,9 +94,13 @@ namespace PinballUI
         TextMeshProUGUI powerLabel;
         const float PopupTime = 0.7f;
 
+        // 台の上の文字は、1 VS 1 の画面分けの P2 の画面には映さない（逆さまになるため。SplitScreen）
+        P1OnlyText textLayer;
+
         void Start()
         {
             BuildCanvas();
+            textLayer = new P1OnlyText(canvasRoot);
         }
 
         void OnEnable()
@@ -175,6 +179,7 @@ namespace PinballUI
         void OnDestroy()
         {
             if (canvasObject != null) Destroy(canvasObject);
+            textLayer?.Destroy();
         }
 
         void BuildCanvas()
@@ -373,6 +378,7 @@ namespace PinballUI
             foreach (var ui in railUis) UpdateRail(gm, ui);
             UpdatePower(gm);
             foreach (var ui in outlaneUis) UpdateOutlane(gm, ui);
+            textLayer?.Sync();
         }
 
         // ===================== アウトレーン =====================

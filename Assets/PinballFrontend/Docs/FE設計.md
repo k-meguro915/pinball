@@ -282,3 +282,13 @@ namespace はすべて `PinballFrontend`。置き場所は `Assets/PinballFronte
 
 ## 17. リポジトリ（2026-11-27）
 GitHub の非公開リポジトリ＋Git LFS で管理する。手順と 2 人で作業するときの決まりは、プロジェクト直下の `README.md`。`git init`、`.gitignore`、`.gitattributes`、LFS、UnityYAMLMerge の設定まで済み。最初のコミット（429941b、455 ファイル）を作り、`https://github.com/k-meguro915/pinball` の `main` に送った（2026-11-27。LFS の 9 ファイルも送れた）。
+
+## 18. せっていの画面（2026-11-27）
+タイトルに「せってい」を足した（スタートと終了のあいだ）。タイトルのシーンの上に重ねて開く（シーンは増やさない）。
+- 項目：**1 VS 1 の画面**（台全体／自陣だけ）。1 VS 1 で画面を左右に分けたときの映し方（[本編への相談_1VS1の画面分け.md](本編への相談_1VS1の画面分け.md) の 4.1）。
+- 保存：`FEGameSettings`（PlayerPrefs の `PinballFrontend.GameSettings`）。試合ごとに選ぶ `FEMatchSettings` とは別にした（ゲーム全体の設定なので、モード選択には出さない）。値を変えるとすぐ保存する。
+- 本編へ：`FESession` が本編シーンを読む前に `FEGameSettings.Apply()` で `Pinball.SplitScreen.View` に入れる。
+- 閉じる：「もどる」、Esc／パッドの B。閉じるとタイトルの「せってい」が選ばれた状態に戻る。
+- クラス：`FEGameSettings`、`FESettingsPanel`（新規）、`FETitleScreen`、`FESession`（直した）。
+- これから足せる項目：音量、画面モードなど（同じ `FEGameSettings` と `FESettingsPanel` の行に足す）。
+- 2026-11-27 Unity で試した：例外なし。保存された値は `{"splitView":1}`（自陣だけ）。そのあとの 1 VS 1（対戦、ドッジボール）も例外なし。

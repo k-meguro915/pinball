@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace PinballFrontend
@@ -63,6 +63,7 @@ namespace PinballFrontend
             pendingGameWidth = Mathf.Clamp(gameWidth, 0.2f, 0.9f);
             ReturnScenePath = returnScenePath;
             Time.timeScale = 1f;
+            FEGameSettings.Current.Apply(); // タイトルの「せってい」を本編へ
             Debug.Log($"[PinballFrontend] {(tutorial ? "あそびかたへ" : "試合へ")}：{pending}");
             SceneManager.LoadScene(matchScenePath);
             return true;

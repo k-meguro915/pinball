@@ -13,6 +13,7 @@ namespace PinballUI
     ///
     /// 位置や大きさは、シーンの各パネル（RectTransform）を動かして調整できる。色・文字・文言は PinballHudTheme。
     /// 縦長の画面では、パネルを台の上下へ自動で移す（adaptToPortrait）。
+    /// 1 VS 1 の画面分け（SplitScreen）の間は、P2 のパネルを右下（P2 の画面の手前）へ移す。
     /// </summary>
     public class PinballHud : MonoBehaviour
     {
@@ -75,6 +76,7 @@ namespace PinballUI
         public bool adaptToPortrait = true;
 
         bool? lastPortrait;
+        bool lastSplit;
         BlockerRow[] rows = new BlockerRow[0];
         float nextRowSearch;
 
@@ -173,9 +175,11 @@ namespace PinballUI
 
         void UpdateOrientation()
         {
-            bool portrait = adaptToPortrait && Screen.height > Screen.width;
-            if (lastPortrait == portrait) return;
+            bool split = SplitScreen.VersusActive;
+            bool portrait = !split && adaptToPortrait && Screen.height > Screen.width;
+            if (lastPortrait == portrait && lastSplit == split) return;
             lastPortrait = portrait;
+            lastSplit = split;
 
             if (scaler != null) scaler.matchWidthOrHeight = portrait ? 0f : 1f;
 
@@ -183,7 +187,16 @@ namespace PinballUI
             {
                 var p = players[i];
                 if (p == null || p.root == null) continue;
-                if (!portrait)
+                if (split && i == 1)
+                {
+                    // 1 VS 1 の画面分け：P2 の画面は 180 度回っていて、P2 の陣地が下に来る。P2 のパネルは右下へ
+                    var a = new Vector2(1f, 0f);
+                    p.root.anchorMin = a;
+                    p.root.anchorMax = a;
+                    p.root.pivot = a;
+                    p.root.anchoredPosition = new Vector2(-Mathf.Abs(p.anchoredPos.x), Mathf.Abs(p.anchoredPos.y));
+                }
+                else if (!portrait)
                 {
                     // シーンで置いた位置に戻す
                     p.root.anchorMin = p.anchorMin;

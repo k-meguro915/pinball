@@ -96,7 +96,9 @@ namespace PinballDodgeball
             }
 
             DrawPanel(0, new Rect(20f * k, Screen.height - 380f * k, 420f * k, 360f * k), k);
-            DrawPanel(1, new Rect(Screen.width - 440f * k, 20f * k, 420f * k, 360f * k), k);
+            // 1 VS 1 の画面分けでは、P2 の画面は 180 度回っていて P2 の陣地が下に来る。P2 のパネルは右下へ
+            float p2y = DBGameManager.SplitActive ? Screen.height - 380f * k : 20f * k;
+            DrawPanel(1, new Rect(Screen.width - 440f * k, p2y, 420f * k, 360f * k), k);
             DrawServeLabels(k);
             DrawMessages(k);
             if (gm.CurrentState == DBGameManager.State.Over) DrawResult(k);
@@ -217,17 +219,34 @@ namespace PinballDodgeball
         }
 
         /// <summary>サーブ中：2 つの出入り口の横に「自陣へ」「相手陣地へ」。選んでいる方を明るく</summary>
+        /// <summary>台を映しているカメラ。画面分けのときは P1 と P2 の 2 台（台の上の文字は、それぞれの画面に出す）</summary>
+        readonly System.Collections.Generic.List<Camera> viewCams = new System.Collections.Generic.List<Camera>(2);
+
+        System.Collections.Generic.List<Camera> ViewCameras()
+        {
+            viewCams.Clear();
+            var cam = Camera.main;
+            if (cam == null) return viewCams;
+            viewCams.Add(cam);
+            var fit = cam.GetComponent<DBCameraFit>();
+            var second = fit != null ? fit.SecondCamera : null;
+            if (second != null) viewCams.Add(second);
+            return viewCams;
+        }
+
         void DrawServeLabels(float k)
         {
             if (gm.CurrentState != DBGameManager.State.Serve || gm.ServeLaunched) return;
-            var cam = Camera.main;
             var lane = gm.lanes[gm.Server];
-            if (cam == null || lane == null) return;
+            if (lane == null) return;
             float x = Mathf.Sign(lane.laneX) * (DBConst.PlayHalfWidth - 0.9f);
             var old = GUI.color;
             Color c = gm.PlayerColor(gm.Server);
-            ServeLabel(cam, new Vector3(x, 0f, lane.ownExitZ), "自陣へ", !gm.RouteOpponent, c, k);
-            ServeLabel(cam, new Vector3(x, 0f, lane.oppExitZ), "相手陣地へ", gm.RouteOpponent, c, k);
+            foreach (var cam in ViewCameras())
+            {
+                ServeLabel(cam, new Vector3(x, 0f, lane.ownExitZ), "自陣へ", !gm.RouteOpponent, c, k);
+                ServeLabel(cam, new Vector3(x, 0f, lane.oppExitZ), "相手陣地へ", gm.RouteOpponent, c, k);
+            }
             GUI.color = old;
         }
 
@@ -241,7 +260,7 @@ namespace PinballDodgeball
 
         void DrawMessages(float k)
         {
-            var cam = Camera.main;
+            var cams = ViewCameras();
             float t = Time.time;
             int centerIndex = 0;
             foreach (var m in gm.messages)
@@ -252,17 +271,28 @@ namespace PinballDodgeball
                 c.a = alpha;
                 var old = GUI.color;
                 GUI.color = c;
-                if (m.hasWorld && cam != null)
+                if (m.hasWorld && cams.Count > 0)
                 {
-                    Vector3 sp = cam.WorldToScreenPoint(m.world);
                     float rise = age * 30f * k;
-                    var r = new Rect(sp.x - 200f * k, Screen.height - sp.y - 40f * k - rise, 400f * k, 50f * k);
-                    GUI.Label(r, m.text, center);
+                    foreach (var cam in cams)
+                    {
+                        Vector3 sp = cam.WorldToScreenPoint(m.world);
+                        var r = new Rect(sp.x - 200f * k, Screen.height - sp.y - 40f * k - rise, 400f * k, 50f * k);
+                        GUI.Label(r, m.text, center);
+                    }
                 }
                 else
                 {
-                    var r = new Rect(0f, Screen.height * 0.42f + centerIndex * 60f * k, Screen.width, 60f * k);
-                    GUI.Label(r, m.text, center);
+                    // 画面分けのときは、それぞれの画面の真ん中に出す
+                    float y = Screen.height * 0.42f + centerIndex * 60f * k;
+                    if (cams.Count > 1)
+                        foreach (var cam in cams)
+                        {
+                            var px = cam.pixelRect;
+                            GUI.Label(new Rect(px.x, y, px.width, 60f * k), m.text, center);
+                        }
+                    else
+                        GUI.Label(new Rect(0f, y, Screen.width, 60f * k), m.text, center);
                     centerIndex++;
                 }
                 GUI.color = old;

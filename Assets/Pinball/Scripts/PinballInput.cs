@@ -106,6 +106,8 @@ namespace Pinball
                 var v2 = ReadMove(1); // CPU戦では P2 側の操作でも動かせる
                 if (v2.sqrMagnitude > v.sqrMagnitude) v = v2;
             }
+            // 1 VS 1 の画面分けでは、P2 の画面は 180 度回っている。P2 の画面の上下左右で動くよう逆にする
+            if (player == 1 && SplitScreen.VersusActive) v = -v;
             return Vector2.ClampMagnitude(v, 1f);
         }
 
@@ -125,6 +127,9 @@ namespace Pinball
         {
             if (player < 0 || player > 1) return false;
             if (cpuControlled[player]) return cpuPress[player, (int)side];
+            // 1 VS 1 の画面分けでは、P2 の画面は 180 度回っていて左右が入れ替わる。
+            // P2 の画面の左のフリッパー = FlipperTop（LB）になるよう、P2 だけ入れ替える
+            if (player == 1 && SplitScreen.VersusActive) side = side == FlipperSide.Top ? FlipperSide.Bottom : FlipperSide.Top;
             return HeldForHuman(player, side == FlipperSide.Top ? ActTop : ActBottom);
         }
 
