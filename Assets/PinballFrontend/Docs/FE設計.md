@@ -281,4 +281,4 @@ namespace はすべて `PinballFrontend`。置き場所は `Assets/PinballFronte
 - ビルドとテストプレイ（2026-11-24）：Build Windows (x64) で `Pinball_Versus.exe` をビルドし、数回テストプレイした。Player.log（`AppData\LocalLow\ICE\Pinball_Versus\`）に例外なし。
 
 ## 17. リポジトリ（2026-11-27）
-GitHub の非公開リポジトリ＋Git LFS で管理する。手順と 2 人で作業するときの決まりは、プロジェクト直下の `README.md`。`git init`、`.gitignore`、`.gitattributes`、LFS、UnityYAMLMerge の設定まで済み。**最初のコミットと、GitHub への送り出しはまだ。**
+GitHub の非公開リポジトリ＋Git LFS で管理する。手順と 2 人で作業するときの決まりは、プロジェクト直下の `README.md`。`git init`、`.gitignore`、`.gitattributes`、LFS、UnityYAMLMerge の設定まで済み。最初のコミット（429941b、455 ファイル）を作り、`https://github.com/k-meguro915/pinball` の `main` に送った（2026-11-27。LFS の 9 ファイルも送れた）。
