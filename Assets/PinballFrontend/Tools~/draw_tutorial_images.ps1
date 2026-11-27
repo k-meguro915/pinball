@@ -147,48 +147,44 @@ function Draw-Pad($g) {
     FillRound $g 824 388 38 18 9 $PADDIM
 }
 
+# 2026-11-27 の見直し：「文字だらけで読めない」という意見を受けて、画像の文字は大きな見出しの言葉だけにした。
+#   灰色の補足や、文になった説明は描かない（くわしいことは、遊びながら覚えてもらう）。
+
 function Callout($g, [float]$tx, [float]$ty, [string]$head, [string[]]$lines, [string]$align, [float[]]$line) {
     Line $g $line[0] $line[1] $line[2] $line[3] $GOLD 2
     if ($line.Length -ge 6) { Line $g $line[2] $line[3] $line[4] $line[5] $GOLD 2 }
     FillCircle $g $line[$line.Length - 2] $line[$line.Length - 1] 5 $GOLD
-    Text $g $head $tx $ty 36 $GOLD $align -Bold
-    $y = $ty + 52
-    foreach ($l in $lines) { Text $g $l $tx $y 25 $WHITE $align; $y += 34 }
+    Text $g $head $tx $ty 40 $GOLD $align -Bold
+    $y = $ty + 58
+    foreach ($l in $lines) { Text $g $l $tx $y 34 $WHITE $align -Bold; $y += 46 }
 }
 
-function Draw-ControlsImage([string]$name, [string]$title, $lb, $rb, $stick, [string[]]$note) {
+function Draw-ControlsImage([string]$name, $lb, $rb, $stick) {
     $c = New-Canvas; $g = $c.G
-    Text $g $title 800 36 52 $WHITE "Center" -Bold
-    Text $g "P1・P2 とも同じ配置です（1 台目のパッド = P1、2 台目 = P2）" 800 108 26 $SUB "Center"
     Draw-Pad $g
     Callout $g 420 170 $lb.Head $lb.Lines "Far" @(430, 196, 575, 196, 575, 262)
     Callout $g 1150 170 $rb.Head $rb.Lines "Near" @(1140, 196, 1025, 196, 1025, 262)
     Callout $g 420 470 $stick.Head $stick.Lines "Far" @(430, 496, 470, 496, 528, 430)
-    FillRound $g 60 730 1480 130 24 $BOX
-    StrokeRound $g 60 730 1480 130 24 $BOXEDGE 2
-    $y = 754
-    foreach ($l in $note) { Text $g $l 100 $y 26 $WHITE "Near"; $y += 40 }
+    Text $g "P1・P2 同じ配置" 800 760 30 $SUB "Center"
     Save-Canvas $c $name
 }
 
 # ================================================================
 # 対戦ルール：操作
-Draw-ControlsImage "Versus_Controls.png" "操作（ゲームパッド）" `
-    @{ Head = "LB"; Lines = @("左のフリッパー", "サーブ前：ルート切り替え", "ラリー中：ブロッカーで跳ね返す") } `
-    @{ Head = "RB"; Lines = @("右のフリッパー", "サーブ：長押しで溜めて離すと発射", "キャッチ：ラリー中に押したまま", "離すと発射") } `
-    @{ Head = "L スティック"; Lines = @("ブロッカーを動かす", "キャッチ中は左右で狙う向き") } `
-    @("フリッパーと、サーブ・キャッチ・跳ね返しは同じボタンです。", "押すと、フリッパーも一緒に動きます。")
+Draw-ControlsImage "Versus_Controls.png" `
+    @{ Head = "LB"; Lines = @("左フリッパー", "ルート切替・跳ね返し") } `
+    @{ Head = "RB"; Lines = @("右フリッパー", "サーブ・キャッチ") } `
+    @{ Head = "L スティック"; Lines = @("ブロッカー移動") }
 
 # ドッジボール：操作
-Draw-ControlsImage "Dodgeball_Controls.png" "操作（ゲームパッド）" `
-    @{ Head = "LB"; Lines = @("左のフリッパー", "サーブ前：ルート切り替え") } `
-    @{ Head = "RB"; Lines = @("右のフリッパー", "サーブ：長押しで溜めて離すと発射", "キャッチ：球が来たら押したまま", "離すと投げる") } `
-    @{ Head = "L スティック"; Lines = @("選手を動かす", "投げる向き（左右）") } `
-    @("球が来る直前に押してつかむと「ジャストキャッチ」。投げる球が速くなります。", "フリッパーと、サーブ・キャッチ・ルート切り替えは同じボタンです。")
+Draw-ControlsImage "Dodgeball_Controls.png" `
+    @{ Head = "LB"; Lines = @("左フリッパー", "ルート切替") } `
+    @{ Head = "RB"; Lines = @("右フリッパー", "サーブ・キャッチ") } `
+    @{ Head = "L スティック"; Lines = @("選手移動") }
 
 # ================================================================
-# サーブ（対戦ルール・ドッジボール共通の形。下の 2 行だけちがう）
-function Draw-ServeImage([string]$name, [string[]]$topNote, [string]$fault2) {
+# サーブ（対戦ルール・ドッジボール共通の形。下の 1 行だけちがう）
+function Draw-ServeImage([string]$name, [string]$faultNote) {
     $c = New-Canvas; $g = $c.G
     # 盤面（相手の陣地：上、自分の陣地：下）
     FillRect $g 280 60 620 270 $OPP
@@ -204,28 +200,24 @@ function Draw-ServeImage([string]$name, [string[]]$topNote, [string]$fault2) {
     # ルートの矢印
     Arrow $g @(985, 550, 985, 230, 950, 186, 700, 196) $ORANGE 4
     Arrow $g @(968, 760, 968, 640, 940, 592, 700, 596) $GREEN 4
-    Text $g "相手陣地ルート" 668 176 36 $ORANGE "Far" -Bold
-    Text $g "相手の陣地に出る" 668 226 26 $SUB "Far"
-    Text $g "自陣ルート" 668 576 36 $GREEN "Far" -Bold
-    Text $g "自分の陣地に出る" 668 626 26 $SUB "Far"
+    Text $g "相手陣地へ" 668 172 44 $ORANGE "Far" -Bold
+    Text $g "自陣へ" 668 572 44 $GREEN "Far" -Bold
     # 球とプランジャー（ボタン名は書かない）
     FillCircle $g 968 765 13 $BALL
     FillRound $g 930 790 80 50 6 $GREEN
     # 溜めのゲージ
     StrokeRound $g 1060 520 30 320 2 $WALL 2
     FillRect $g 1064 620 22 216 $GOLD
-    # 説明
-    $y = 320
-    foreach ($l in $topNote) { Text $g $l 1130 $y 30 $WHITE; $y += 44 }
-    Text $g "長押しで溜めて" 1130 540 36 $GOLD -Bold
-    Text $g "離すと発射" 1130 590 36 $GOLD -Bold
-    Text $g "弱すぎて戻ると フォルト" 1130 744 30 $RED -Bold
-    Text $g $fault2 1130 790 26 $SUB
+    # 説明（大きな言葉だけ）
+    Text $g "溜めて" 1130 560 48 $GOLD -Bold
+    Text $g "離す！" 1130 624 48 $GOLD -Bold
+    Text $g "弱いと フォルト" 1130 760 36 $RED -Bold
+    if ($faultNote) { Text $g $faultNote 1130 812 30 $SUB }
     Save-Canvas $c $name
 }
 
-Draw-ServeImage "Versus_Serve.png" @("打つ前ならルートを", "切り替えられる") "2 回続くと相手に 1 点"
-Draw-ServeImage "Dodgeball_Serve.png" @("サーブは試合の始めだけ", "打つ前ならルートを", "切り替えられる") "2 回続くとサーブが相手に移る"
+Draw-ServeImage "Versus_Serve.png" "2 回で相手に 1 点"
+Draw-ServeImage "Dodgeball_Serve.png" ""
 
 # ================================================================
 # 対戦ルール：ブロッカー（ボタン名を書かない形で描き直し）
@@ -247,38 +239,26 @@ foreach ($a in @(-60, -35, -10, 15, 40)) {
     $r = [Math]::PI * $a / 180
     Line $g (440 + 44 * [Math]::Sin($r)) (440 - 30 * [Math]::Cos($r)) (440 + 60 * [Math]::Sin($r)) (440 - 42 * [Math]::Cos($r)) $GOLD 3
 }
-Text $g "跳ね返す" 150 190 36 $GOLD -Bold
-Text $g "当たる直前に押す" 150 238 26 $SUB
+Text $g "跳ね返す" 150 196 44 $GOLD -Bold
 # キャッチ
 FillCircle $g 660 432 16 $BALL
 Arrow $g @(660, 408, 700, 262) $GREEN 4
-Text $g "キャッチ" 712 222 36 $GREEN -Bold
-Text $g "押している間つかむ" 712 270 24 $SUB
-Text $g "離して発射" 712 302 24 $SUB
-Text $g "（左右で狙う）" 712 334 24 $SUB
+Text $g "キャッチ" 712 226 44 $GREEN -Bold
 # スティック
 FillCircle $g 230 610 30 (C 92 100 128)
 Arrow $g @(198, 610, 168, 610) $WHITE 3
 Arrow $g @(262, 610, 292, 610) $WHITE 3
 Arrow $g @(230, 578, 230, 548) $WHITE 3
 Arrow $g @(230, 642, 230, 672) $WHITE 3
-Text $g "スティックで移動" 310 590 32 $WHITE -Bold
-# HP とダウン、すり抜け、アウトレーン
-Text $g "強い球が当たると HP -1" 1110 150 34 $WHITE -Bold
-Text $g "HP 0 で 4 秒ダウン" 1110 198 34 $RED -Bold
-FillRound $g 1130 268 160 44 22 (C 50 56 80)
-StrokeRound $g 1130 268 160 44 22 (C 92 100 128) 2
-Text $g "→ すり抜ける" 1310 274 26 $SUB
-FillRect $g 1390 420 16 420 $WALL
-FillRect $g 1406 420 74 420 (C 92 40 48)
-FillRect $g 1480 360 16 480 $WALL
-Arrow $g @(1443, 440, 1443, 820) $RED 4
-Text $g "ダウン中は" 1370 518 28 $WHITE "Far" -Bold
-Text $g "同じ側のアウトレーンが開く" 1370 558 28 $WHITE "Far" -Bold
-Text $g "入ると失点" 1370 598 28 $RED "Far" -Bold
-Text $g "自分の打った球は" 1120 688 24 $SUB
-Text $g "自分のブロッカーを" 1120 720 24 $SUB
-Text $g "すり抜ける" 1120 752 24 $SUB
+Text $g "移動" 310 586 40 $WHITE -Bold
+# HP とダウン、アウトレーン
+Text $g "HP 0 で ダウン" 1080 180 44 $RED -Bold
+FillRect $g 1390 360 16 480 $WALL
+FillRect $g 1406 360 74 480 (C 92 40 48)
+FillRect $g 1480 300 16 540 $WALL
+Arrow $g @(1443, 380, 1443, 820) $RED 4
+Text $g "ダウン中は" 1360 520 36 $WHITE "Far" -Bold
+Text $g "失点しやすい" 1360 572 36 $RED "Far" -Bold
 Save-Canvas $c "Versus_Blocker.png"
 
 # ================================================================
@@ -309,24 +289,61 @@ foreach ($a in 0..7) {
 }
 Text $g "アウト！" 852 120 30 $GOLD -Bold
 # 左の説明
-Text $g "P2 / CPU の陣地" 570 220 34 $RED "Far" -Bold
-Text $g "（上・赤）" 570 264 26 $SUB "Far"
-Text $g "P1 の陣地" 570 650 34 $BLUE "Far" -Bold
-Text $g "（下・青）" 570 694 26 $SUB "Far"
-Text $g "外野" 570 560 30 $RED "Far" -Bold
+Text $g "P2 / CPU" 570 220 40 $RED "Far" -Bold
+Text $g "P1" 570 650 40 $BLUE "Far" -Bold
+Text $g "外野" 570 556 36 $RED "Far" -Bold
 Line $g 580 584 622 600 $RED 2
-Text $g "アウトになった選手は、" 570 470 24 $SUB "Far"
-Text $g "相手の陣地の左右で外野に" 570 502 24 $SUB "Far"
 # 右の説明
 Line $g 900 200 1030 200 $GOLD 2
-Text $g "相手の選手 3 人を" 1040 150 36 $GOLD -Bold
-Text $g "全員アウトにしたら勝ち" 1040 196 36 $GOLD -Bold
-Text $g "相手の色の球に当たるとアウト" 1040 300 30 $WHITE -Bold
-Text $g "球の色 = いま誰の球か" 1040 352 28 $WHITE
-Text $g "（白 = だれの球でもない）" 1040 392 26 $SUB
-Text $g "外野が投げた球で" 1040 560 30 $WHITE -Bold
-Text $g "相手をアウトにすると" 1040 604 30 $WHITE -Bold
-Text $g "外野から戻ってくる" 1040 648 30 $GREEN -Bold
+Text $g "3 人アウトで" 1040 150 44 $GOLD -Bold
+Text $g "勝ち！" 1040 206 44 $GOLD -Bold
+Text $g "相手の色の球で" 1040 330 36 $WHITE -Bold
+Text $g "アウト" 1040 380 36 $WHITE -Bold
+Text $g "外野で当てると" 1040 580 36 $WHITE -Bold
+Text $g "復活" 1040 630 36 $GREEN -Bold
 Save-Canvas $c "Dodgeball_Rules.png"
+
+# ================================================================
+# 対戦ルール：ルール（もとは ControlsGuide の画像を写していた。文字を減らすため、ここで描き直す）
+$c = New-Canvas; $g = $c.G
+$L = 610; $R = 990; $T = 70; $B = 830; $M = 450
+FillRect $g $L $T ($R - $L) ($M - $T) $OPP
+FillRect $g $L $M ($R - $L) ($B - $M) $OWN
+Line $g $L $M $R $M (C 200 205 220 160) 2 -Dash
+FillRect $g $L ($T - 14) ($R - $L) 14 $RED
+FillRect $g $L $B ($R - $L) 14 $BLUE
+$pen = New-Object System.Drawing.Pen($WALL, 3); $g.DrawLine($pen, $L, $T, $L, $B); $g.DrawLine($pen, $R, $T, $R, $B); $pen.Dispose()
+# フリッパー（上：P2、下：P1）
+function Flipper($g, $cx, $cy, $up, $color) {
+    $dy = if ($up) { -12 } else { 12 }
+    $pen = New-Object System.Drawing.Pen($color, 14)
+    $pen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round; $pen.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
+    $g.DrawLine($pen, [float]($cx - 60), [float]$cy, [float]($cx - 6), [float]($cy + $dy))
+    $g.DrawLine($pen, [float]($cx + 60), [float]$cy, [float]($cx + 6), [float]($cy + $dy))
+    $pen.Dispose()
+}
+Flipper $g 800 160 $false $RED
+Flipper $g 800 740 $true $BLUE
+# 球は、今いる側のゴールへ転がる（両側の矢印）
+foreach ($x in @(650, 950)) {
+    Arrow $g @($x, 420, $x, 300) (C 255 150 140) 3
+    Arrow $g @($x, 480, $x, 600) (C 150 200 255) 3
+}
+# 球と、相手のゴールへの矢印
+FillCircle $g 800 640 16 $BALL
+Arrow $g @(800, 620, 850, 380, 800, 100) $GOLD 4
+# 左の説明
+Text $g "P2 / CPU" 570 220 40 $RED "Far" -Bold
+Text $g "真ん中が山" 570 426 36 $WHITE "Far" -Bold
+Text $g "P1" 570 610 40 $BLUE "Far" -Bold
+# 右の説明
+Line $g 880 200 1030 200 $GOLD 2
+Text $g "相手のゴールに" 1040 150 44 $GOLD -Bold
+Text $g "入れて 1 点" 1040 206 44 $GOLD -Bold
+Text $g "3／5／10 点" 1040 396 44 $WHITE -Bold
+Text $g "先取で勝ち" 1040 452 36 $WHITE -Bold
+Line $g 870 740 1030 740 $SUB 2
+Text $g "フリッパーで守る" 1040 716 36 $WHITE -Bold
+Save-Canvas $c "Versus_Rules.png"
 
 $fonts.Dispose()

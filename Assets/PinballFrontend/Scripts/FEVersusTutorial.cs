@@ -96,13 +96,13 @@ namespace PinballFrontend
 
         public (string action, string token)[] ControlRows { get; } =
         {
-            ("左のフリッパー", "L"),
-            ("右のフリッパー", "R"),
-            ("サーブ（長押しで溜めて、離すと発射）", "Serve"),
-            ("サーブのルート切り替え（打つ前）", "Route"),
-            ("ブロッカーを動かす", "Move"),
-            ("キャッチ（押している間）／離して発射", "Catch"),
-            ("跳ね返す（当たる直前に押す）", "Bounce"),
+            ("左フリッパー", "L"),
+            ("右フリッパー", "R"),
+            ("サーブ", "Serve"),
+            ("ルート切替", "Route"),
+            ("ブロッカー移動", "Move"),
+            ("キャッチ", "Catch"),
+            ("跳ね返す", "Bounce"),
         };
 
         static string Colored(string text, Color c) => "<color=#" + ColorUtility.ToHtmlStringRGB(c) + ">" + text + "</color>";

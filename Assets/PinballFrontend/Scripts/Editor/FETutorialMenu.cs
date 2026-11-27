@@ -8,7 +8,7 @@ namespace PinballFrontend.EditorTools
     /// メニュー「Tools > Pinball Frontend > Create Tutorial Content」。
     /// あそびかたの右の説明（Data/Tutorial_Versus.asset、Data/Tutorial_Dodgeball.asset）を、ここに書いた文と画像で作り、FEConfig に入れる。
     /// 作ったあとは、アセットを直接直してよい（このメニューをもう一度実行すると、ここの文で上書きする）。
-    /// 画像は UI/Tutorial/ にある（Tools~/draw_tutorial_images.ps1 で描いたもの。Versus_Rules.png だけは、もとの操作説明（ControlsGuide）の画像を写したもの）。
+    /// 画像は UI/Tutorial/ にある（すべて Tools~/draw_tutorial_images.ps1 で描いたもの）。
     /// 文の中の {L} などの印は FETutorialContent の説明を参照。
     /// </summary>
     public static class FETutorialMenu
@@ -30,42 +30,29 @@ namespace PinballFrontend.EditorTools
 
             SetupImages();
 
+            // 文は 1 ページ 1〜2 行（2026-11-27 の見直し：「文字だらけで読めない」）。中身は画像で見せ、文はボタンだけを書く
             var versus = Write(vPath, new[]
             {
                 Page("ルール", VersusRulesImage,
-                    "・相手のゴール（相手側の端）に球を入れると 1 点。\n" +
-                    "・台は真ん中が山。球は、今いる側のゴールへ転がっていく。\n" +
-                    "・先に決めた点数（3／5／10 点）を取った方の勝ち。\n" +
-                    "・自分のゴールは、{L}／{R} のフリッパーで守る。"),
+                    "{L} {R} で守って、相手のゴールへ！"),
                 Page("操作", ImageDir + "/Versus_Controls.png",
                     "{ControlsTable}"),
                 Page("サーブ", ImageDir + "/Versus_Serve.png",
-                    "・サーブ番のときに、{Serve} を長押しで溜めて、離すと発射。\n" +
-                    "・打つ前なら {Route} で、自陣ルート／相手陣地ルートを切り替えられる。\n" +
-                    "・弱すぎて戻ってくるとフォルト。2 回続くと相手に 1 点。\n" +
-                    "・サーブは 2 本ごとに交代。"),
+                    "{Serve} 長押し → 離して発射\n" +
+                    "{Route} でルート切替"),
                 Page("ブロッカー", ImageDir + "/Versus_Blocker.png",
-                    "・{Move} で、自分の陣地のブロッカーを動かす。\n" +
-                    "・球が来たら {Catch} を押したままでつかみ、離すと発射（{Move} の左右で狙う）。\n" +
-                    "・当たる直前に {Bounce} を押すと、強く跳ね返す。\n" +
-                    "・強い球が当たると HP が減り、0 になるとしばらくダウン。"),
+                    "{Move} 移動　{Catch} キャッチ　{Bounce} 跳ね返す"),
             });
 
             var dodge = Write(dPath, new[]
             {
                 Page("ルール", ImageDir + "/Dodgeball_Rules.png",
-                    "・相手の選手 3 人を、全員アウトにしたら勝ち。\n" +
-                    "・相手の色の球に当たるとアウト。球の色は「いま誰の球か」（白は、だれの球でもない）。\n" +
-                    "・アウトになった選手は、相手の陣地の左右で外野になる。外野が投げた球で相手をアウトにすると、戻ってくる。\n" +
-                    "・{L}／{R} のフリッパーで、球を打ち返す。"),
+                    "{L} {R} で打ち返して、相手に当てろ！"),
                 Page("操作", ImageDir + "/Dodgeball_Controls.png",
-                    "{ControlsTable}\n\n" +
-                    "・球が来る直前に {Catch} を押してつかむと「ジャストキャッチ」。投げる球が速くなる。"),
+                    "{ControlsTable}"),
                 Page("サーブ", ImageDir + "/Dodgeball_Serve.png",
-                    "・サーブは試合の始めだけ。\n" +
-                    "・{Serve} を長押しで溜めて、離すと発射。\n" +
-                    "・打つ前なら {Route} で、自陣へ／相手陣地へを切り替えられる。\n" +
-                    "・弱すぎて戻ってくるとフォルト。2 回続くと、サーブが相手に移る。"),
+                    "{Serve} 長押し → 離して発射\n" +
+                    "{Route} でルート切替"),
             });
 
             var config = FEBuildMenu.LoadOrCreateConfig();

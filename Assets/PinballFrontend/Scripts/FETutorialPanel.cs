@@ -120,11 +120,11 @@ namespace PinballFrontend
             imageFit.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
             imageFit.aspectRatio = 16f / 9f;
 
-            // 文（長いときは小さくして収める）
-            body = FEUI.CreateText(crt, "Body", "", 28f, FEUI.TextColor, TextAlignmentOptions.TopLeft, null);
+            // 文（1〜2 行の短い文は大きく。操作の一覧のように長いときは小さくして収める）
+            body = FEUI.CreateText(crt, "Body", "", 36f, FEUI.TextColor, TextAlignmentOptions.TopLeft, null);
             body.enableAutoSizing = true;
             body.fontSizeMin = 18f;
-            body.fontSizeMax = 28f;
+            body.fontSizeMax = 36f;
             body.lineSpacing = 8f;
             var ble = body.gameObject.AddComponent<LayoutElement>();
             ble.flexibleHeight = 1f;
