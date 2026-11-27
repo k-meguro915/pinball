@@ -1,0 +1,44 @@
+# Unity が各自の PC で作り直すもの（リポジトリに入れない）
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+
+# ビルドの出力
+/[Bb]uild/
+/[Bb]uilds/
+
+# IDE（Visual Studio / Rider / VS Code）が作るもの
+.vs/
+.idea/
+.vscode/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+
+# Unity が作る一時ファイル
+sysinfo.txt
+crashlytics-build.properties
+*.tmp
+mono_crash.*
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

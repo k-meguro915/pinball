@@ -1,0 +1,67 @@
+# 改行は Git にまかせる（リポジトリの中は LF、各自の PC ではその OS の改行）
+* text=auto
+
+# ---- Unity のテキスト形式のアセット（Force Text） ----
+# 2 人で同じファイルを直したときは、Unity の UnityYAMLMerge でまとめる。
+# merge ドライバーは各自の PC で 1 回設定する（README.md を参照）
+*.unity         text merge=unityyamlmerge
+*.prefab        text merge=unityyamlmerge
+*.asset         text merge=unityyamlmerge
+*.mat           text merge=unityyamlmerge
+*.anim          text merge=unityyamlmerge
+*.controller    text merge=unityyamlmerge
+*.overrideController text merge=unityyamlmerge
+*.physicMaterial text merge=unityyamlmerge
+*.physicsMaterial text merge=unityyamlmerge
+*.mixer         text merge=unityyamlmerge
+*.playable      text merge=unityyamlmerge
+*.lighting      text merge=unityyamlmerge
+*.preset        text merge=unityyamlmerge
+*.meta          text merge=unityyamlmerge
+
+*.cs            text diff=csharp
+*.inputactions  text
+*.shader        text
+*.hlsl          text
+*.cginc         text
+*.shadergraph   text
+*.shadersubgraph text
+*.json          text
+*.md            text
+*.ps1           text eol=crlf
+
+# ---- 大きいファイル（Git LFS） ----
+# 画像
+*.png           filter=lfs diff=lfs merge=lfs -text
+*.jpg           filter=lfs diff=lfs merge=lfs -text
+*.jpeg          filter=lfs diff=lfs merge=lfs -text
+*.psd           filter=lfs diff=lfs merge=lfs -text
+*.tga           filter=lfs diff=lfs merge=lfs -text
+*.tif           filter=lfs diff=lfs merge=lfs -text
+*.tiff          filter=lfs diff=lfs merge=lfs -text
+*.gif           filter=lfs diff=lfs merge=lfs -text
+*.bmp           filter=lfs diff=lfs merge=lfs -text
+*.exr           filter=lfs diff=lfs merge=lfs -text
+*.hdr           filter=lfs diff=lfs merge=lfs -text
+*.ai            filter=lfs diff=lfs merge=lfs -text
+*.svg           filter=lfs diff=lfs merge=lfs -text
+# フォント
+*.ttf           filter=lfs diff=lfs merge=lfs -text
+*.otf           filter=lfs diff=lfs merge=lfs -text
+*.ttc           filter=lfs diff=lfs merge=lfs -text
+# 3D
+*.fbx           filter=lfs diff=lfs merge=lfs -text
+*.obj           filter=lfs diff=lfs merge=lfs -text
+*.blend         filter=lfs diff=lfs merge=lfs -text
+# 音・動画
+*.wav           filter=lfs diff=lfs merge=lfs -text
+*.mp3           filter=lfs diff=lfs merge=lfs -text
+*.ogg           filter=lfs diff=lfs merge=lfs -text
+*.aif           filter=lfs diff=lfs merge=lfs -text
+*.aiff          filter=lfs diff=lfs merge=lfs -text
+*.mp4           filter=lfs diff=lfs merge=lfs -text
+*.mov           filter=lfs diff=lfs merge=lfs -text
+# そのほか
+*.unitypackage  filter=lfs diff=lfs merge=lfs -text
+*.zip           filter=lfs diff=lfs merge=lfs -text
+*.pdf           filter=lfs diff=lfs merge=lfs -text

@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0c58d3ae8d6302b4eba8c5825282be89, type: 3}
+  m_Name: FEConfig
+  m_EditorClassIdentifier: Assembly-CSharp::PinballFrontend.FEConfig
+  gameTitle: THE PINBALL
+  productName: Pinball_Versus
+  companyName: ICE
+  titleScenePath: Assets/PinballFrontend/Scenes/FE_Title.unity
+  modeSelectScenePath: Assets/PinballFrontend/Scenes/FE_ModeSelect.unity
+  versusScenePath: Assets/Scenes/Pinball_VersusMode.unity
+  dodgeballScenePath: Assets/Scenes/PinBall_DodgeMode.unity
+  tutorialGameWidth: 0.5
+  versusTutorial: {fileID: 11400000, guid: 8cd4c02cc7e7b5345b92426081945273, type: 2}
+  dodgeballTutorial: {fileID: 11400000, guid: 7a4faa24837bea44e937ece1f648cd5d, type: 2}
